@@ -224,7 +224,7 @@ pub(super) struct PageTableNode<
 > where
     [(); C::NR_LEVELS as usize]:,
 {
-    page: Page<PageTablePageMeta<E, C>>,
+    pub page: Page<PageTablePageMeta<E, C>>,
 }
 
 impl<E: PageTableEntryTrait, C: PagingConstsTrait> PageTableNode<E, C>
@@ -339,6 +339,45 @@ where
     fn nr_children_mut(&mut self) -> &mut u16 {
         // SAFETY: The lock is held so we have an exclusive access.
         unsafe { &mut *self.page.meta().nr_children.get() }
+    }
+
+    pub fn is_cow(&self) -> bool {
+        // SAFETY: The lock is held so we have an exclusive access.
+        unsafe { *self.page.meta().cow.get() }
+    }
+
+    pub fn set_cow(&mut self) {
+        // SAFETY: The lock is held so we have an exclusive access.
+        unsafe { *self.page.meta().cow.get() = true;}
+    }
+
+    pub fn unset_cow(&mut self) {
+        // SAFETY: The lock is held so we have an exclusive access.
+        unsafe { *self.page.meta().cow.get() = false;}
+    }
+
+    fn set_children_cow(&mut self) {
+        // 把self的所有children设置为cow
+        // 怎么遍历所有children啊？
+        todo!()
+    }
+
+    pub fn copy_on_write(&mut self) -> Option<PageTableNode<E, C>> {
+        debug_assert!(self.is_cow());
+        let page: DynPage = self.page.clone().into();
+        let page: Page<PageTablePageMeta> = page.try_into().unwrap();
+
+        let only_reference = page.reference_count() == 3;
+
+        if only_reference {
+            self.unset_cow();
+            self.set_children_cow();
+            None
+        } else {
+            // 复制一份self，并把所有children设置为cow
+            // 怎么复制一页Tracked的啊？
+            todo!()
+        }
     }
 }
 

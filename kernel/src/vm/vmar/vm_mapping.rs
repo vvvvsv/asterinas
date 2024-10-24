@@ -535,6 +535,10 @@ impl VmMapping {
     fn check_perms(&self, perms: &VmPerms) -> Result<()> {
         self.inner.lock().check_perms(perms)
     }
+
+    pub fn need_pt_copy(&self) -> bool {
+        self.vmo.is_none()
+    }
 }
 
 impl VmMappingInner {

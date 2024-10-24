@@ -105,7 +105,7 @@ fn test_user_copy_on_write() {
         let range = 0..MAX_USERSPACE_VADDR;
         let mut child_cursor = child_pt.cursor_mut(&range).unwrap();
         let mut parent_cursor = pt.cursor_mut(&range).unwrap();
-        unsafe { child_cursor.copy_from(&mut parent_cursor, range.len(), &mut prot_op) };
+        unsafe { child_cursor.copy_from(&mut parent_cursor, range.len(), &mut prot_op, true) };
         child_pt
     };
     assert_eq!(pt.query(from.start + 10).unwrap().0, start_paddr + 10);
@@ -122,7 +122,7 @@ fn test_user_copy_on_write() {
         let range = 0..MAX_USERSPACE_VADDR;
         let mut sibling_cursor = sibling_pt.cursor_mut(&range).unwrap();
         let mut parent_cursor = pt.cursor_mut(&range).unwrap();
-        unsafe { sibling_cursor.copy_from(&mut parent_cursor, range.len(), &mut prot_op) };
+        unsafe { sibling_cursor.copy_from(&mut parent_cursor, range.len(), &mut prot_op, true) };
         sibling_pt
     };
     assert!(sibling_pt.query(from.start + 10).is_none());
