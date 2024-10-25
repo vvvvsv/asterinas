@@ -90,7 +90,7 @@ struct VmMappingInner {
 
 impl Interval<usize> for Arc<VmMapping> {
     fn range(&self) -> Range<usize> {
-        self.map_to_addr()..self.map_to_addr() + self.map_size()
+        self.inner.read().range()
     }
 }
 
@@ -415,10 +415,6 @@ impl VmMapping {
         })
     }
 
-    pub fn range(&self) -> Range<usize> {
-        self.map_to_addr()..self.map_to_addr() + self.map_size()
-    }
-
     /// Protects the current `VmMapping` to enforce new permissions within a specified range.
     ///
     /// Due to the property of `VmMapping`, this operation may require subdividing the current
@@ -440,7 +436,7 @@ impl VmMapping {
         perms: VmPerms,
     ) -> Result<()> {
         let mut additional_mappings = Vec::new();
-        let range = self.range();
+        let range = self.inner.read().range();
         // Condition 4, the `additional_mappings` will be empty.
         if range.start == intersect_range.start && range.end == intersect_range.end {
             self.inner.write().perms = perms;
@@ -494,9 +490,11 @@ impl VmMapping {
         mappings_to_remove: &mut LinkedList<Vaddr>,
         mappings_to_append: &mut LinkedList<(Vaddr, Arc<VmMapping>)>,
     ) -> Result<()> {
-        let map_to_addr = self.map_to_addr();
-        let map_size = self.map_size();
-        let range = self.range();
+        let (map_to_addr, map_size, range) = {
+            let inner = self.inner.read();
+            (inner.map_to_addr, inner.map_size, inner.range())
+        };
+
         if !is_intersected(&range, trim_range) {
             return Ok(());
         }
