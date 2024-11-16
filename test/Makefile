@@ -48,8 +48,8 @@ $(INITRAMFS)/lib/x86_64-linux-gnu: | $(VDSO_LIB)
 	@cp -L /lib/x86_64-linux-gnu/libm.so.6 $@
 	@cp -L /lib/x86_64-linux-gnu/libgcc_s.so.1 $@
 	@cp -L /lib/x86_64-linux-gnu/libpthread.so.0 $@
-	@# required for benchmarks
-	@cp -L /lib/x86_64-linux-gnu/libcrypto.so.3 $@
+	@# required for Apache
+	@cp -L /lib/x86_64-linux-gnu/libpcre2-8.so.0 $@
 	@cp -L /lib/x86_64-linux-gnu/libcrypt.so.1 $@
 	@cp -L /lib/x86_64-linux-gnu/libdl.so.2 $@
 	@cp -L /lib/x86_64-linux-gnu/libz.so.1 $@
@@ -68,6 +68,8 @@ $(INITRAMFS)/lib/x86_64-linux-gnu: | $(VDSO_LIB)
 	@cp -L /lib/x86_64-linux-gnu/libsqlite3.so $@
 	@# required for memcached
 	@cp -L /lib/x86_64-linux-gnu/libevent-2.1.so.7 $@
+	@cp -L /lib/x86_64-linux-gnu/libexpat.so.1 $@
+	@cp -L /lib/x86_64-linux-gnu/libuuid.so.1 $@
 	@# required for VDSO
 	@cp -L $(VDSO_LIB) $@
 
@@ -109,6 +111,8 @@ $(INITRAMFS)/usr/local:
 	@cp -r /usr/local/nginx $@
 	@cp -r /usr/local/redis $@
 	@cp -r /usr/local/memcached $@
+	@cp -r /usr/local/apache2 $@
+	@cp -r /usr/local/apr $@
 
 .PHONY: $(INITRAMFS)/test
 $(INITRAMFS)/test:
@@ -132,6 +136,7 @@ $(INITRAMFS)/benchmark/bin:
 	@cp /usr/local/leveldb/benchmark/db_bench_sqlite3 $@
 	@cp /usr/local/benchmark/hackbench $@
 	@cp /usr/local/benchmark/schbench $@
+	@mkdir -p $@/../apache/logs
 
 # Make necessary directories.
 $(INITRAMFS_EMPTY_DIRS):
@@ -166,7 +171,7 @@ $(INITRAMFS_IMAGE): $(INITRAMFS_FILELIST)
 # If the BUILD_SYSCALL_TEST variable is set, we should depend on the
 # sub make output to do incremental building.
 ifeq ($(BUILD_SYSCALL_TEST), 1)
-$(INITRAMFS_FILELIST): | $(INITRAMFS_ALL_DIRS) $(SYSCALL_TEST_DIR)
+$(INITRAMFS_FILELIST): | $(INITRAMFS_ALL_DIRS) # $(SYSCALL_TEST_DIR)
 else
 $(INITRAMFS_FILELIST): | $(INITRAMFS_ALL_DIRS)
 endif
