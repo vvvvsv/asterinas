@@ -35,6 +35,7 @@ TEST_APPS := \
 	pthread \
 	pty \
 	shm \
+	scale \
 	signal_c \
 	vsock \
 
