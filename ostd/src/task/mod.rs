@@ -15,6 +15,7 @@ use core::{
     cell::{Cell, SyncUnsafeCell},
     ops::Deref,
     ptr::NonNull,
+    sync::atomic::AtomicBool,
 };
 
 use kernel_stack::KernelStack;
@@ -46,6 +47,8 @@ pub struct Task {
     /// kernel stack, note that the top is SyscallFrame/TrapFrame
     #[allow(dead_code)]
     kstack: KernelStack,
+
+    is_running: AtomicBool,
 
     schedule_info: TaskScheduleInfo,
 }
@@ -197,6 +200,7 @@ impl TaskOptions {
         /// this function is mean to executing the task_fn in Task
         extern "C" fn kernel_task_entry() -> ! {
             // See `switch_to_task` for why we need this.
+            crate::task::processor::set_prev_task_not_running();
             crate::arch::irq::enable_local();
 
             let current_task = Task::current()
@@ -246,6 +250,7 @@ impl TaskOptions {
             user_space: self.user_space,
             ctx,
             kstack,
+            is_running: AtomicBool::new(false),
             schedule_info: TaskScheduleInfo {
                 cpu: AtomicCpuId::default(),
             },
