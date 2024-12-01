@@ -80,7 +80,7 @@ pub(super) fn switch_to_task(next_task: Arc<Task>) {
         .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
         .is_err()
     {
-        log::error!("A task is scheduled to multiple CPUs, retrying...");
+        // log::error!("A task is scheduled to multiple CPUs, retrying...");
         core::hint::spin_loop();
     }
 

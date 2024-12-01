@@ -1379,7 +1379,6 @@ dependencies = [
  "ostd-test",
  "riscv",
  "sbi-rt",
- "smallvec",
  "spin",
  "static_assertions",
  "tdx-guest",
