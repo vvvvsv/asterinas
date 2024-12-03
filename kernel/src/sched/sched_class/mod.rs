@@ -3,7 +3,10 @@
 #![warn(unused)]
 
 use alloc::{boxed::Box, sync::Arc};
-use core::{fmt, sync::atomic::AtomicU64};
+use core::{
+    fmt,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use ostd::{
     cpu::{all_cpus, AtomicCpuSet, CpuId, PinCurrentCpu},
@@ -224,7 +227,7 @@ impl ClassScheduler {
     // TODO: Implement a better algorithm and replace the current naive implementation.
     fn select_cpu(&self, affinity: &AtomicCpuSet) -> CpuId {
         let guard = disable_local();
-        let affinity = affinity.load();
+        let affinity = affinity.load(Ordering::Relaxed);
         let cur = guard.current_cpu();
         if affinity.contains(cur) {
             cur
