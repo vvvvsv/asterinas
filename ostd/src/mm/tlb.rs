@@ -79,9 +79,9 @@ impl<'c> TlbFlusher<'c> {
 
     /// Synchronizes the TLB flush requests to all the relevant CPUs.
     pub fn sync_tlb_flush(&mut self) {
-        // let cpu_set = self.dispatch_tlb_flush();
+        let cpu_set = self.dispatch_tlb_flush();
 
-        // sync_tlb_with(&self.irq_guard, cpu_set);
+        sync_tlb_with(&self.irq_guard, cpu_set);
     }
 
     fn dispatch_tlb_flush(&mut self) -> CpuSet {
