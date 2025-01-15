@@ -1,6 +1,6 @@
 #include "common.h"
 
-#define NUM_PAGES 1024 // Number of pages to unmap per thread
+#define NUM_PAGES 32 // Number of pages to unmap per thread
 
 void *worker_thread(void *arg)
 {
@@ -44,12 +44,12 @@ int main(int argc, char *argv[])
 	for (int one_multi = 0; one_multi <= 1; one_multi++) {
 		for (int near_far = 0; near_far <= 1; near_far++) {
 			for (int dist_rand = 0; dist_rand <= 1; dist_rand++) {
-				printf("***MUNMAP_VIRT %s %s %s***\n", one_multi ? "MULTI_VMAS" : "ONE_VMA", near_far ? "FAR" : "NEAR", dist_rand ? "RAND" : "DIST");
+				printf("***MUNMAP %s %s %s***\n", one_multi ? "MULTI_VMAS" : "ONE_VMA", near_far ? "FAR" : "NEAR", dist_rand ? "RAND" : "DIST");
 				ret = entry_point(argc, argv, worker_thread,
 						(test_config_t){ .num_requests_per_thread = NUM_PAGES,
 									.num_pages_per_request = 1,
 									.mmap_before_spawn = 1,
-									.trigger_fault_before_spawn = 0,
+									.trigger_fault_before_spawn = 1,
 									.multi_vma_assign_requests = one_multi,
 									.far_assign_requests = near_far,
 									.rand_assign_requests = dist_rand,

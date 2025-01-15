@@ -1,6 +1,6 @@
 #include "common.h"
 
-#define NUM_PAGES 1024 // Number of pages to unmap per thread
+#define NUM_PAGES 1024 // Number of pages to allocate per thread for mmap
 
 void *worker_thread(void *arg)
 {
@@ -15,11 +15,11 @@ void *worker_thread(void *arg)
 	}
 	tsc_start = rdtsc();
 
-	// unmap them one by one
+	// Trigger page fault one by one
 	for (size_t i = 0; i < NUM_PAGES; i++) {
 		long req_start = rdtsc();
 
-		munmap(data->base + data->offset[i], PAGE_SIZE);
+		data->base[data->offset[i]] = 1;
 
 		long req_end = rdtsc();
 		tot_lat += req_end - req_start;
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 	for (int one_multi = 0; one_multi <= 1; one_multi++) {
 		for (int near_far = 0; near_far <= 1; near_far++) {
 			for (int dist_rand = 0; dist_rand <= 1; dist_rand++) {
-				printf("***MUNMAP_VIRT %s %s %s***\n", one_multi ? "MULTI_VMAS" : "ONE_VMA", near_far ? "FAR" : "NEAR", dist_rand ? "RAND" : "DIST");
+				printf("***PF %s %s %s***\n", one_multi ? "MULTI_VMAS" : "ONE_VMA", near_far ? "FAR" : "NEAR", dist_rand ? "RAND" : "DIST");
 				ret = entry_point(argc, argv, worker_thread,
 						(test_config_t){ .num_requests_per_thread = NUM_PAGES,
 									.num_pages_per_request = 1,

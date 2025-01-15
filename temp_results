@@ -1,0 +1,61 @@
+***MMAP UNFIXED***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 180735, 10804, 39583
+16, 1000, 108908, 12063, 21064
+16, 2000, 70435, 15746, 24912
+
+***MMAP FIXED NEAR DIST***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 164524, 10052, 21460
+16, 1000, 131387, 11130, 27032
+16, 2000, 74198, 14614, 22185
+
+***MMAP FIXED NEAR RAND***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 61784, 19050, 29119
+
+***MMAP FIXED FAR DIST***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 100454, 13532, 25157
+16, 1000, 87396, 14083, 23454
+
+***MMAP FIXED FAR RAND***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 65264, 19619, 30573
+
+
+
+
+
+
+***MUNMAP ONE_VMA NEAR DIST***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 11921, 150065, 541463
+
+***MUNMAP ONE_VMA NEAR RAND***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 10941, 145364, 512925
+
+***MUNMAP ONE_VMA FAR DIST***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 11800, 293466, 1751072
+
+***MUNMAP ONE_VMA FAR RAND***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 10740, 445898, 2383044
+
+***MUNMAP MULTI_VMAS NEAR DIST***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 14118, 141230, 517078
+
+***MUNMAP MULTI_VMAS NEAR RAND***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 10154, 152801, 388307
+
+***MUNMAP MULTI_VMAS FAR DIST***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 14105, 322099, 1907691
+
+***MUNMAP MULTI_VMAS FAR RAND***
+Threads, Interval (cycles), Avg Throughput (per sec), Avg Latency (ns), p99 Latency (ns)
+16, 0, 10614, 428539, 2874473
