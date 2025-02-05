@@ -64,5 +64,4 @@ pub fn lazy_init() {
         println!("[kernel] Mount ExFat fs at {:?} ", target_path);
         self::rootfs::mount_fs_at(exfat_fs, &target_path).unwrap();
     }
-
 }
