@@ -2,6 +2,8 @@
 
 //! This module provides accessors to the page table entries in a node.
 
+use core::{mem::ManuallyDrop, ops::Range};
+
 use super::{Child, MapTrackingStatus, PageTableEntryTrait, PageTableNode};
 use crate::mm::{
     nr_subpage_per_huge, page_prop::PageProperty, page_size, vm_space::Token, PagingConstsTrait,
@@ -29,7 +31,7 @@ where
     /// The index of the entry in the node.
     idx: usize,
     /// The node that contains the entry.
-    node: &'a mut PageTableNode<E, C>,
+    node: &'a PageTableNode<E, C>,
 }
 
 impl<'a, E: PageTableEntryTrait, C: PagingConstsTrait> Entry<'a, E, C>
@@ -68,7 +70,7 @@ where
     /// Operates on the mapping properties of the entry.
     ///
     /// It only modifies the properties if the entry is present.
-    pub(in crate::mm) fn protect(
+    pub(in crate::mm) unsafe fn protect(
         &mut self,
         prot_op: &mut impl FnMut(&mut PageProperty),
         token_op: &mut impl FnMut(&mut Token),
@@ -115,7 +117,7 @@ where
     ///
     /// The method panics if the given child is not compatible with the node.
     /// The compatibility is specified by the [`Child::is_compatible`].
-    pub(in crate::mm) fn replace(self, new_child: Child<E, C>) -> Child<E, C> {
+    pub(in crate::mm) unsafe fn replace(self, new_child: Child<E, C>) -> Child<E, C> {
         assert!(new_child.is_compatible(self.node.level(), self.node.is_tracked()));
 
         // SAFETY: The entry structure represents an existent entry with the
@@ -123,12 +125,6 @@ where
         // so that it is not used anymore.
         let old_child =
             unsafe { Child::from_pte(self.pte, self.node.level(), self.node.is_tracked()) };
-
-        if old_child.is_none() && !new_child.is_none() {
-            *self.node.nr_children_mut() += 1;
-        } else if !old_child.is_none() && new_child.is_none() {
-            *self.node.nr_children_mut() -= 1;
-        }
 
         // SAFETY:
         //  1. The index is within the bounds.
@@ -146,7 +142,10 @@ where
     ///
     /// If the entry does not map to a untracked huge page, the method returns
     /// `None`.
-    pub(in crate::mm) fn split_if_untracked_huge(self) -> Option<PageTableNode<E, C>> {
+    pub(in crate::mm) unsafe fn split_if_untracked_huge(
+        self,
+        lock_range: Range<usize>,
+    ) -> Option<ManuallyDrop<PageTableNode<E, C>>> {
         let level = self.node.level();
 
         if !(self.pte.is_last(level)
@@ -159,24 +158,31 @@ where
         let pa = self.pte.paddr();
         let prop = self.pte.prop();
 
-        let mut new_page = PageTableNode::<E, C>::alloc(level - 1, MapTrackingStatus::Untracked);
+        let new_page =
+            PageTableNode::<E, C>::alloc(level - 1, MapTrackingStatus::Untracked, lock_range);
         for i in 0..nr_subpage_per_huge::<C>() {
             let small_pa = pa + i * page_size::<C>(level - 1);
-            let _ = new_page
-                .entry(i)
-                .replace(Child::Untracked(small_pa, level - 1, prop));
+            let _ = unsafe {
+                new_page
+                    .entry(i)
+                    .replace(Child::Untracked(small_pa, level - 1, prop))
+            };
         }
 
-        let _ = self.replace(Child::PageTable(new_page.clone_raw()));
+        let new_page_ref = unsafe { new_page.get_manual_ref() };
+        let _ = self.replace(Child::PageTable(new_page));
 
-        Some(new_page)
+        Some(new_page_ref)
     }
 
     /// Splits the entry into a child that is marked with a same token.
     ///
     /// This method returns [`None`] if the entry is not marked with a token or
     /// it is in the last level.
-    pub(in crate::mm) fn split_if_huge_token(self) -> Option<PageTableNode<E, C>> {
+    pub(in crate::mm) unsafe fn split_if_huge_token(
+        self,
+        lock_range: Range<usize>,
+    ) -> Option<ManuallyDrop<PageTableNode<E, C>>> {
         let level = self.node.level();
 
         if !(!self.pte.is_present() && level > 1 && self.pte.paddr() != 0) {
@@ -186,14 +192,15 @@ where
         // SAFETY: The physical address was written as a valid token.
         let token = unsafe { Token::from_raw_inner(self.pte.paddr()) };
 
-        let mut new_page = PageTableNode::<E, C>::alloc(level - 1, self.node.is_tracked());
+        let new_page = PageTableNode::<E, C>::alloc(level - 1, self.node.is_tracked(), lock_range);
         for i in 0..nr_subpage_per_huge::<C>() {
             let _ = new_page.entry(i).replace(Child::Token(token));
         }
 
-        let _ = self.replace(Child::PageTable(new_page.clone_raw()));
+        let new_page_ref = unsafe { new_page.get_manual_ref() };
+        let _ = self.replace(Child::PageTable(new_page));
 
-        Some(new_page)
+        Some(new_page_ref)
     }
 
     /// Create a new entry at the node.
@@ -201,7 +208,7 @@ where
     /// # Safety
     ///
     /// The caller must ensure that the index is within the bounds of the node.
-    pub(super) unsafe fn new_at(node: &'a mut PageTableNode<E, C>, idx: usize) -> Self {
+    pub(super) unsafe fn new_at(node: &'a PageTableNode<E, C>, idx: usize) -> Self {
         // SAFETY: The index is within the bound.
         let pte = unsafe { node.read_pte(idx) };
         Self { pte, idx, node }
