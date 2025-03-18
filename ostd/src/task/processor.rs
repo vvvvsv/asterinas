@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use alloc::sync::Arc;
-use core::ptr::NonNull;
+use core::{ptr::NonNull, sync::atomic::Ordering};
 
 use super::{context_switch, Task, TaskContext, POST_SCHEDULE_HANDLER};
 use crate::cpu_local_cell;
@@ -49,6 +49,7 @@ pub(super) fn switch_to_task(next_task: Arc<Task>) {
     let current_task_ctx_ptr = if !current_task_ptr.is_null() {
         // SAFETY: The current task is always alive.
         let current_task = unsafe { &*current_task_ptr };
+
         current_task.save_fpu_state();
 
         // Throughout this method, the task's context is alive and can be exclusively used.
@@ -69,11 +70,6 @@ pub(super) fn switch_to_task(next_task: Arc<Task>) {
     PREVIOUS_TASK_PTR.store(current_task_ptr);
 
     next_task.kstack.flush_tlb(&irq_guard);
-    CURRENT_TASK_PTR.store(Arc::into_raw(next_task));
-
-    if let Some(handler) = POST_SCHEDULE_HANDLER.get() {
-        handler();
-    }
 
     // Drop the old-previously running task.
     if !old_prev.is_null() {
@@ -82,9 +78,23 @@ pub(super) fn switch_to_task(next_task: Arc<Task>) {
         drop(unsafe { Arc::from_raw(old_prev) });
     }
 
-    // Keep interrupts disabled during context switching. This will be enabled after switching to
-    // the target task (in the code below or in `kernel_task_entry`).
-    core::mem::forget(irq_guard);
+    while next_task
+        .foreground
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
+        .is_err()
+    {
+        log::warn!("Switching to a task already running in the foreground");
+        core::hint::spin_loop();
+    }
+
+    CURRENT_TASK_PTR.store(Arc::into_raw(next_task));
+
+    if let Some(handler) = POST_SCHEDULE_HANDLER.get() {
+        handler();
+    }
+
+    // We must disable IRQs when switching, see `on_task_entry_or_resume`.
+    let _ = core::mem::ManuallyDrop::new(irq_guard);
 
     // SAFETY:
     // 1. `ctx` is only used in `reschedule()`. We have exclusive access to both the current task
@@ -101,11 +111,20 @@ pub(super) fn switch_to_task(next_task: Arc<Task>) {
     // next task. Not dropping is just fine because the only consequence is that we delay the drop
     // to the next task switching.
 
-    // See also `kernel_task_entry`.
-    crate::arch::irq::enable_local();
+    on_task_entry_or_resume();
 
-    // The `next_task` was moved into `CURRENT_TASK_PTR` above, now restore its FPU state.
     if let Some(current) = Task::current() {
         current.restore_fpu_state();
     }
+}
+
+pub(super) fn on_task_entry_or_resume() {
+    let prev = PREVIOUS_TASK_PTR.load();
+    if !prev.is_null() {
+        // SAFETY: The pointer is set by `switch_to_task` and is guaranteed to be
+        // built with `Arc::into_raw`.
+        let prev_task = unsafe { &*prev };
+        prev_task.foreground.store(false, Ordering::Release);
+    }
+    crate::arch::irq::enable_local();
 }
