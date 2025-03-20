@@ -34,6 +34,8 @@ mod cpu_local;
 
 pub(crate) mod single_instr;
 
+pub mod per_cpu_counter;
+
 use core::alloc::Layout;
 
 use align_ext::AlignExt;

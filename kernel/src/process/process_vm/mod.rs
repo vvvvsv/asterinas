@@ -24,6 +24,7 @@ pub use self::{
     },
 };
 use crate::{prelude::*, vm::vmar::Vmar};
+use ostd::cpu::local::per_cpu_counter::{PER_CPU_COUNTER_ALLOCATOR, PerCpuCounter};
 
 /*
  * The user's virtual memory space layout looks like below.
