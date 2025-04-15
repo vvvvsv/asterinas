@@ -12,6 +12,7 @@ use crate::{
     net::socket::Socket,
     prelude::*,
     process::{signal::Pollable, Gid, Uid},
+    vm::perms::VmPerms,
 };
 
 /// The basic operations defined on a file

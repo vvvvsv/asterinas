@@ -310,7 +310,7 @@ impl TryFrom<Frame<dyn AnyFrameMeta>> for UFrame {
             // SAFETY: The metadata is coerceable and the struct is transmutable.
             Ok(unsafe { core::mem::transmute::<Frame<dyn AnyFrameMeta>, UFrame>(dyn_frame) })
         } else {
-            Err(dyn_frame)
+           Err(dyn_frame)
         }
     }
 }

@@ -29,6 +29,7 @@ use crate::{
         signal::{PollHandle, Pollable},
         Gid, Uid,
     },
+    vm::perms::VmPerms,
 };
 
 #[derive(Debug)]
