@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
+mod fb;
 mod null;
 mod pty;
 mod random;
@@ -11,6 +12,7 @@ mod zero;
 #[cfg(all(target_arch = "x86_64", feature = "cvm_guest"))]
 mod tdxguest;
 
+pub use fb::Fb;
 pub use pty::{new_pty_pair, PtyMaster, PtySlave};
 pub use random::Random;
 pub use urandom::Urandom;
@@ -40,6 +42,8 @@ pub fn init() -> Result<()> {
     add_node(random, "random")?;
     let urandom = Arc::new(urandom::Urandom);
     add_node(urandom, "urandom")?;
+    let fb = Arc::new(fb::Fb);
+    add_node(fb, "fb0")?;
     pty::init()?;
     shm::init()?;
     Ok(())
@@ -64,6 +68,7 @@ pub fn get_device(dev: usize) -> Result<Arc<dyn Device>> {
         (5, 0) => Ok(Arc::new(tty::TtyDevice)),
         (1, 8) => Ok(Arc::new(random::Random)),
         (1, 9) => Ok(Arc::new(urandom::Urandom)),
+        (29, 0) => Ok(Arc::new(fb::Fb)),
         _ => return_errno_with_message!(Errno::EINVAL, "unsupported device"),
     }
 }

@@ -150,7 +150,11 @@ fn parse_memory_regions(boot_params: &BootParams) -> MemoryRegionArray {
             if e820_base == fb_base && e820_end == fb_end {
                 // Exact match with framebuffer region
                 regions
-                    .push(MemoryRegion::new(fb_base, fb_size, MemoryRegionType::Framebuffer))
+                    .push(MemoryRegion::new(
+                        fb_base,
+                        fb_size,
+                        MemoryRegionType::Framebuffer,
+                    ))
                     .unwrap();
                 continue;
             } else if e820_base < fb_end && e820_end > fb_base {
@@ -209,7 +213,11 @@ fn parse_memory_regions(boot_params: &BootParams) -> MemoryRegionArray {
             MemoryRegionType::Framebuffer,
         )) {
             regions
-                .push(MemoryRegion::new(fb_base, fb_size, MemoryRegionType::Framebuffer))
+                .push(MemoryRegion::new(
+                    fb_base,
+                    fb_size,
+                    MemoryRegionType::Framebuffer,
+                ))
                 .unwrap();
         }
     }

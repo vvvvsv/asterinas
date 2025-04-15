@@ -10,6 +10,7 @@ use crate::{
     net::socket::Socket,
     prelude::*,
     process::{signal::Pollable, Gid, Uid},
+    vm::perms::VmPerms,
 };
 
 /// The basic operations defined on a file
@@ -45,6 +46,17 @@ pub trait FileLike: Pollable + Send + Sync + Any {
 
     fn ioctl(&self, cmd: IoctlCmd, arg: usize) -> Result<i32> {
         return_errno_with_message!(Errno::EINVAL, "ioctl is not supported");
+    }
+
+    fn mmap(
+        &self,
+        addr: Vaddr,
+        len: usize,
+        offset: usize,
+        perms: VmPerms,
+        ctx: &Context,
+    ) -> Result<Vaddr> {
+        return_errno_with_message!(Errno::EINVAL, "mmap is not supported");
     }
 
     fn resize(&self, new_size: usize) -> Result<()> {
