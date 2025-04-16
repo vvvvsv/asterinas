@@ -90,7 +90,7 @@ impl FileLike for InodeHandle<Rights> {
     fn set_group(&self, gid: Gid) -> Result<()>;
     fn seek(&self, seek_from: SeekFrom) -> Result<usize>;
     fn get_io_mem(&self) -> Option<IoMem>;
-
+    fn dentry(&self) -> Option<&Dentry>;
     fn read(&self, writer: &mut VmWriter) -> Result<usize> {
         if !self.1.contains(Rights::READ) {
             return_errno_with_message!(Errno::EBADF, "file is not readable");
