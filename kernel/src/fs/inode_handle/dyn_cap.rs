@@ -88,7 +88,7 @@ impl FileLike for InodeHandle<Rights> {
     //     ctx: &Context,
     // ) -> Result<Vaddr>;
     fn get_io_mem(&self) -> Option<IoMem>;
-
+    fn dentry(&self) -> Option<&Dentry>;
     fn read(&self, writer: &mut VmWriter) -> Result<usize> {
         if !self.1.contains(Rights::READ) {
             return_errno_with_message!(Errno::EBADF, "file is not readable");
