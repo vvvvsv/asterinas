@@ -609,6 +609,12 @@ impl Dentry {
             .map(|dentry| Self::new(self.mount_node().clone(), dentry))
     }
 
+    // pub fn parent(&self) -> Option<Self> {
+    //     self.inner
+    //         .parent()
+    //         .map(|dentry| Self::new(self.mount_node.clone(), dentry))
+    // }
+
     /// Lookups the target `Dentry` given the `name`.
     pub fn lookup(&self, name: &str) -> Result<Self> {
         if self.type_() != InodeType::Dir {
