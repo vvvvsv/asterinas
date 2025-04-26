@@ -11,7 +11,7 @@ use crate::{
     mm::{
         nr_subpage_per_huge, paddr_to_vaddr,
         page_table::{
-            load_pte, page_size, pte_index, Child, MapTrackingStatus, PageTable, PageTableConfig,
+            load_pte, page_size, pte_index, ChildRef, PageTable, PageTableConfig,
             PageTableEntryTrait, PageTableGuard, PageTableNodeRef, PagingConstsTrait, PagingLevel,
         },
         Vaddr,
@@ -23,7 +23,6 @@ pub(super) fn lock_range<'pt, 'rcu, G: AsAtomicModeGuard, C: PageTableConfig>(
     pt: &'pt PageTable<C>,
     guard: &'rcu G,
     va: &Range<Vaddr>,
-    new_pt_is_tracked: MapTrackingStatus,
 ) -> Cursor<'pt, 'rcu, G, C> {
     // The re-try loop of finding the sub-tree root.
     //
@@ -32,9 +31,7 @@ pub(super) fn lock_range<'pt, 'rcu, G: AsAtomicModeGuard, C: PageTableConfig>(
     // sub-tree will not see the current state and will not change the current
     // state, breaking serializability.
     let mut subtree_root = loop {
-        if let Some(subtree_root) =
-            try_traverse_and_lock_subtree_root(pt, guard, va, new_pt_is_tracked)
-        {
+        if let Some(subtree_root) = try_traverse_and_lock_subtree_root(pt, guard, va) {
             break subtree_root;
         }
     };
@@ -88,7 +85,6 @@ fn try_traverse_and_lock_subtree_root<'rcu, G: AsAtomicModeGuard, C: PageTableCo
     pt: &PageTable<C>,
     _guard: &'rcu G,
     va: &Range<Vaddr>,
-    new_pt_is_tracked: MapTrackingStatus,
 ) -> Option<PageTableGuard<'rcu, C>> {
     let mut cur_node_guard: Option<PageTableGuard<C>> = None;
     let mut cur_pt_addr = pt.root.start_paddr();
@@ -136,11 +132,11 @@ fn try_traverse_and_lock_subtree_root<'rcu, G: AsAtomicModeGuard, C: PageTableCo
 
         let mut cur_entry = guard.entry(start_idx);
         if cur_entry.is_none() {
-            let allocated_guard = cur_entry.alloc_if_none(new_pt_is_tracked).unwrap();
+            let allocated_guard = cur_entry.alloc_if_none().unwrap();
             cur_pt_addr = allocated_guard.start_paddr();
             cur_node_guard = Some(allocated_guard);
         } else if cur_entry.is_node() {
-            let Child::PageTableRef(pt) = cur_entry.to_ref() else {
+            let ChildRef::PageTable(pt) = cur_entry.to_ref() else {
                 unreachable!();
             };
             cur_pt_addr = pt.start_paddr();
@@ -187,7 +183,7 @@ fn dfs_acquire_lock<C: PageTableConfig>(
         for i in idx_range {
             let child = cur_node.entry(i);
             match child.to_ref() {
-                Child::PageTableRef(pt) => {
+                ChildRef::PageTable(pt) => {
                     let mut pt_guard = pt.lock();
                     let child_node_va = cur_node_va + i * page_size::<C>(cur_level);
                     let child_node_va_end = child_node_va + page_size::<C>(cur_level);
@@ -196,10 +192,7 @@ fn dfs_acquire_lock<C: PageTableConfig>(
                     dfs_acquire_lock(&mut pt_guard, child_node_va, va_start..va_end);
                     let _ = ManuallyDrop::new(pt_guard);
                 }
-                Child::None
-                | Child::Frame(_, _)
-                | Child::Untracked(_, _, _)
-                | Child::PageTable(_) => {}
+                ChildRef::None | ChildRef::Frame(_, _, _) => {}
             }
         }
     }
@@ -222,7 +215,7 @@ unsafe fn dfs_release_lock<C: PageTableConfig>(
         for i in idx_range.rev() {
             let child = cur_node.entry(i);
             match child.to_ref() {
-                Child::PageTableRef(pt) => {
+                ChildRef::PageTable(pt) => {
                     // SAFETY: The caller ensures that the node is locked.
                     let child_node = unsafe { pt.make_guard_unchecked() };
                     let child_node_va = cur_node_va + i * page_size::<C>(cur_level);
@@ -232,10 +225,7 @@ unsafe fn dfs_release_lock<C: PageTableConfig>(
                     // SAFETY: The caller ensures that this sub-tree is locked.
                     unsafe { dfs_release_lock(child_node, child_node_va, va_start..va_end) };
                 }
-                Child::None
-                | Child::Frame(_, _)
-                | Child::Untracked(_, _, _)
-                | Child::PageTable(_) => {}
+                ChildRef::None | ChildRef::Frame(_, _, _) => {}
             }
         }
     }
@@ -263,15 +253,12 @@ pub(super) unsafe fn dfs_mark_stray_and_unlock<C: PageTableConfig>(
         for i in (0..nr_subpage_per_huge::<C>()).rev() {
             let child = sub_tree.entry(i);
             match child.to_ref() {
-                Child::PageTableRef(pt) => {
+                ChildRef::PageTable(pt) => {
                     // SAFETY: The caller ensures that the node is locked.
                     let locked_pt = unsafe { pt.make_guard_unchecked() };
                     dfs_mark_stray_and_unlock(locked_pt);
                 }
-                Child::None
-                | Child::Frame(_, _)
-                | Child::Untracked(_, _, _)
-                | Child::PageTable(_) => {}
+                ChildRef::None | ChildRef::Frame(_, _, _) => {}
             }
         }
     }
