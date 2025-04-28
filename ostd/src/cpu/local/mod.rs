@@ -4,7 +4,7 @@
 //!
 //! This module provides a mechanism to define CPU-local objects. Users can
 //! define a static CPU-local object by the macro [`crate::cpu_local!`], or
-//! allocate a dynamic CPU-local object with the function
+//! allocate a dynamically-allocated CPU-local object with the function
 //! [`osdk_heap_allocator::alloc_cpu_local`].
 //!
 //! Such a mechanism exploits the fact that constant values of non-[`Copy`]
@@ -18,13 +18,14 @@
 //! # Implementation
 //!
 //! These APIs are implemented by the methods as follows:
-//! 1. Place the static CPU-local objects in a special section `.cpu_local`.
+//! 1. For static CPU-local objects, we place them in a special section `.cpu_local`.
 //!    The bootstrap processor (BSP) uses the objects linked in this section,
 //!    and these objects are copied to dynamically allocated local storage of
 //!    each application processors (AP) during the initialization process.
-//! 2. Prepare a fixed-size chunk for each CPU, and all the chunks are arranged
-//!    contiguously in the order of the CPU IDs. Place the dynamic CPU-local
-//!    objects at the fixed offset positions within the chunks of their CPUs.
+//! 2. For dynamically-allocated CPU-local objects, we prepare a fixed-size
+//!    chunk for each CPU. All the chunks are laid out contiguously in memory
+//!    in the order of the CPU IDs. Each CPU's local objects are placed at fixed
+//!    offsets within its corresponding chunk.
 
 // This module also, provide CPU-local cell objects that have inner mutability.
 //
@@ -44,7 +45,7 @@ use core::{alloc::Layout, marker::PhantomData, ops::Deref};
 
 use align_ext::AlignExt;
 pub use cell::CpuLocalCell;
-pub use dyn_cpu_local::{DynCpuLocalChunk, DynCpuLocalDealloc, DynamicStorage};
+pub use dyn_cpu_local::{CpuLocalAllocator, DynamicStorage};
 use spin::Once;
 pub use static_cpu_local::StaticStorage;
 
@@ -85,7 +86,7 @@ pub unsafe trait AnyStorage<T> {
 /// reference to the inner object, the object is always the one in the original
 /// core (when the reference is created), no matter which core the code is
 /// currently running on.
-pub struct CpuLocal<T, S> {
+pub struct CpuLocal<T, S: AnyStorage<T>> {
     pub(crate) storage: S,
     phantom: PhantomData<T>,
 }
@@ -127,7 +128,7 @@ impl<T: 'static + Sync, S: AnyStorage<T>> CpuLocal<T, S> {
 /// It ensures that the CPU-local object is accessed with IRQs disabled.
 /// It is created by [`CpuLocal::get_with`].
 #[must_use]
-pub struct CpuLocalDerefGuard<'a, T: 'static, S> {
+pub struct CpuLocalDerefGuard<'a, T: 'static, S: AnyStorage<T>> {
     cpu_local: &'a CpuLocal<T, S>,
     guard: &'a DisabledLocalIrqGuard,
 }
