@@ -11,6 +11,7 @@
 
 use core::{ops::Range, sync::atomic::Ordering};
 
+use super::page_table::PageTableConfig;
 use crate::{
     arch::mm::{current_page_table_paddr, PageTableEntry, PagingConsts},
     cpu::{AtomicCpuSet, CpuSet, PinCurrentCpu},
@@ -18,7 +19,7 @@ use crate::{
     mm::{
         io::Fallible,
         kspace::KERNEL_PAGE_TABLE,
-        page_table::{self, PageTable, PageTableItem, UserMode},
+        page_table::{self, PageTable, PageTableItem},
         tlb::{TlbFlushOp, TlbFlusher},
         PageProperty, UFrame, VmReader, VmWriter, MAX_USERSPACE_VADDR,
     },
@@ -64,8 +65,18 @@ use crate::{
 /// [`UserMode::execute`]: crate::user::UserMode::execute
 #[derive(Debug)]
 pub struct VmSpace {
-    pt: PageTable<UserMode>,
+    pt: PageTable<UserPtConfig>,
     cpus: AtomicCpuSet,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct UserPtConfig {}
+
+impl PageTableConfig for UserPtConfig {
+    const VADDR_RANGE: Range<Vaddr> = 0..super::MAX_USERSPACE_VADDR;
+
+    type E = PageTableEntry;
+    type C = PagingConsts;
 }
 
 impl VmSpace {
@@ -198,9 +209,7 @@ impl Default for VmSpace {
 /// It exclusively owns a sub-tree of the page table, preventing others from
 /// reading or modifying the same sub-tree. Two read-only cursors can not be
 /// created from the same virtual address range either.
-pub struct Cursor<'pt, 'rcu, G: AsAtomicModeGuard>(
-    page_table::Cursor<'pt, 'rcu, G, UserMode, PageTableEntry, PagingConsts>,
-);
+pub struct Cursor<'pt, 'rcu, G: AsAtomicModeGuard>(page_table::Cursor<'pt, 'rcu, G, UserPtConfig>);
 
 impl<G: AsAtomicModeGuard> Iterator for Cursor<'_, '_, G> {
     type Item = VmItem;
@@ -247,7 +256,7 @@ impl<G: AsAtomicModeGuard> Cursor<'_, '_, G> {
 /// It exclusively owns a sub-tree of the page table, preventing others from
 /// reading or modifying the same sub-tree.
 pub struct CursorMut<'pt, 'rcu, 'vmspace, G: AsAtomicModeGuard> {
-    pt_cursor: page_table::CursorMut<'pt, 'rcu, G, UserMode, PageTableEntry, PagingConsts>,
+    pt_cursor: page_table::CursorMut<'pt, 'rcu, G, UserPtConfig>,
     // We have a read lock so the CPU set in the flusher is always a superset
     // of actual activated CPUs.
     flusher: TlbFlusher<'vmspace, DisabledPreemptGuard>,

@@ -11,28 +11,20 @@ use crate::{
     mm::{
         nr_subpage_per_huge, paddr_to_vaddr,
         page_table::{
-            load_pte, page_size, pte_index, Child, MapTrackingStatus, PageTable,
-            PageTableEntryTrait, PageTableGuard, PageTableMode, PageTableNodeRef,
-            PagingConstsTrait, PagingLevel,
+            load_pte, page_size, pte_index, Child, MapTrackingStatus, PageTable, PageTableConfig,
+            PageTableEntryTrait, PageTableGuard, PageTableNodeRef, PagingConstsTrait, PagingLevel,
         },
         Vaddr,
     },
     task::atomic_mode::AsAtomicModeGuard,
 };
 
-pub(super) fn lock_range<
-    'pt,
-    'rcu,
-    G: AsAtomicModeGuard,
-    M: PageTableMode,
-    E: PageTableEntryTrait,
-    C: PagingConstsTrait,
->(
-    pt: &'pt PageTable<M, E, C>,
+pub(super) fn lock_range<'pt, 'rcu, G: AsAtomicModeGuard, C: PageTableConfig>(
+    pt: &'pt PageTable<C>,
     guard: &'rcu G,
     va: &Range<Vaddr>,
     new_pt_is_tracked: MapTrackingStatus,
-) -> Cursor<'pt, 'rcu, G, M, E, C> {
+) -> Cursor<'pt, 'rcu, G, C> {
     // The re-try loop of finding the sub-tree root.
     //
     // If we locked a stray node, we need to re-try. Otherwise, although
@@ -56,7 +48,7 @@ pub(super) fn lock_range<
     let mut path = core::array::from_fn(|_| None);
     path[guard_level as usize - 1] = Some(subtree_root);
 
-    Cursor::<'pt, 'rcu, G, M, E, C> {
+    Cursor::<'pt, 'rcu, G, C> {
         path,
         rcu_guard: guard,
         level: guard_level,
@@ -67,13 +59,8 @@ pub(super) fn lock_range<
     }
 }
 
-pub(super) fn unlock_range<
-    G: AsAtomicModeGuard,
-    M: PageTableMode,
-    E: PageTableEntryTrait,
-    C: PagingConstsTrait,
->(
-    cursor: &mut Cursor<'_, '_, G, M, E, C>,
+pub(super) fn unlock_range<G: AsAtomicModeGuard, C: PageTableConfig>(
+    cursor: &mut Cursor<'_, '_, G, C>,
 ) {
     for i in (0..cursor.guard_level as usize - 1).rev() {
         if let Some(guard) = cursor.path[i].take() {
@@ -97,19 +84,13 @@ pub(super) fn unlock_range<
 /// If this function founds that a locked node is stray (because of racing with
 /// page table recycling), it will return `None`. The caller should retry in
 /// this case to lock the proper node.
-fn try_traverse_and_lock_subtree_root<
-    'rcu,
-    G: AsAtomicModeGuard,
-    M: PageTableMode,
-    E: PageTableEntryTrait,
-    C: PagingConstsTrait,
->(
-    pt: &PageTable<M, E, C>,
+fn try_traverse_and_lock_subtree_root<'rcu, G: AsAtomicModeGuard, C: PageTableConfig>(
+    pt: &PageTable<C>,
     _guard: &'rcu G,
     va: &Range<Vaddr>,
     new_pt_is_tracked: MapTrackingStatus,
-) -> Option<PageTableGuard<'rcu, E, C>> {
-    let mut cur_node_guard: Option<PageTableGuard<E, C>> = None;
+) -> Option<PageTableGuard<'rcu, C>> {
+    let mut cur_node_guard: Option<PageTableGuard<C>> = None;
     let mut cur_pt_addr = pt.root.start_paddr();
     for cur_level in (1..=C::NR_LEVELS).rev() {
         let start_idx = pte_index::<C>(va.start, cur_level);
@@ -121,7 +102,7 @@ fn try_traverse_and_lock_subtree_root<
             break;
         }
 
-        let cur_pt_ptr = paddr_to_vaddr(cur_pt_addr) as *mut E;
+        let cur_pt_ptr = paddr_to_vaddr(cur_pt_addr) as *mut C::E;
         // SAFETY:
         //  - The page table node is alive because (1) the root node is alive and
         //    (2) all child nodes cannot be recycled because we're in the RCU critical section.
@@ -143,7 +124,7 @@ fn try_traverse_and_lock_subtree_root<
         let mut guard = cur_node_guard.take().unwrap_or_else(|| {
             // SAFETY: The node must be alive for at least `'rcu` since the
             // address is read from the page table node.
-            let node_ref = unsafe { PageTableNodeRef::<'rcu, E, C>::borrow_paddr(cur_pt_addr) };
+            let node_ref = unsafe { PageTableNodeRef::<'rcu, C>::borrow_paddr(cur_pt_addr) };
             // To make a guard with lifetime `'rcu`.
             let _ = ManuallyDrop::new(node_ref.lock());
             // SAFETY: The node is locked by this thread.
@@ -173,7 +154,7 @@ fn try_traverse_and_lock_subtree_root<
     let mut guard = cur_node_guard.unwrap_or_else(|| {
         // SAFETY: The node must be alive for at least `'rcu` since the
         // address is read from the page table node.
-        let node_ref = unsafe { PageTableNodeRef::<'rcu, E, C>::borrow_paddr(cur_pt_addr) };
+        let node_ref = unsafe { PageTableNodeRef::<'rcu, C>::borrow_paddr(cur_pt_addr) };
         // To make a guard with lifetime `'rcu`.
         let _ = ManuallyDrop::new(node_ref.lock());
         // SAFETY: The node is locked by this thread.
@@ -193,8 +174,8 @@ fn try_traverse_and_lock_subtree_root<
 ///
 /// The function will forget all the [`PageTableGuard`] objects in the sub-tree
 /// with [`PageTableGuard::into_raw_paddr`].
-fn dfs_acquire_lock<E: PageTableEntryTrait, C: PagingConstsTrait>(
-    cur_node: &mut PageTableGuard<'_, E, C>,
+fn dfs_acquire_lock<C: PageTableConfig>(
+    cur_node: &mut PageTableGuard<'_, C>,
     cur_node_va: Vaddr,
     va_range: Range<Vaddr>,
 ) {
@@ -229,8 +210,8 @@ fn dfs_acquire_lock<E: PageTableEntryTrait, C: PagingConstsTrait>(
 /// # Safety
 ///
 /// The caller must ensure that the nodes in the specified sub-tree are locked.
-unsafe fn dfs_release_lock<E: PageTableEntryTrait, C: PagingConstsTrait>(
-    mut cur_node: PageTableGuard<'_, E, C>,
+unsafe fn dfs_release_lock<C: PageTableConfig>(
+    mut cur_node: PageTableGuard<'_, C>,
     cur_node_va: Vaddr,
     va_range: Range<Vaddr>,
 ) {
@@ -273,8 +254,8 @@ unsafe fn dfs_release_lock<E: PageTableEntryTrait, C: PagingConstsTrait>(
 ///
 /// This function must not be called upon a shared node. E.g., the second-
 /// top level nodes that the kernel space and user space share.
-pub(super) unsafe fn dfs_mark_stray_and_unlock<E: PageTableEntryTrait, C: PagingConstsTrait>(
-    mut sub_tree: PageTableGuard<E, C>,
+pub(super) unsafe fn dfs_mark_stray_and_unlock<C: PageTableConfig>(
+    mut sub_tree: PageTableGuard<C>,
 ) {
     *sub_tree.stray_mut() = true;
 

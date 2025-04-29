@@ -34,9 +34,9 @@ use core::{any::TypeId, marker::PhantomData, mem::ManuallyDrop, ops::Range};
 use align_ext::AlignExt;
 
 use super::{
-    page_size, pte_index, Child, Entry, KernelMode, MapTrackingStatus, PageTable,
-    PageTableEntryTrait, PageTableError, PageTableGuard, PageTableMode, PagingConstsTrait,
-    PagingLevel, UserMode,
+    is_valid_range, page_size, pte_index, Child, Entry, KernelPtConfig, MapTrackingStatus,
+    PageTable, PageTableConfig, PageTableError, PageTableGuard, PagingConstsTrait, PagingLevel,
+    UserPtConfig,
 };
 use crate::{
     mm::{
@@ -54,19 +54,12 @@ use crate::{
 /// A cursor is able to move to the next slot, to read page properties,
 /// and even to jump to a virtual address directly.
 #[derive(Debug)]
-pub struct Cursor<
-    'pt,
-    'rcu,
-    G: AsAtomicModeGuard,
-    M: PageTableMode,
-    E: PageTableEntryTrait,
-    C: PagingConstsTrait,
-> {
+pub struct Cursor<'pt, 'rcu, G: AsAtomicModeGuard, C: PageTableConfig> {
     /// The current path of the cursor.
     ///
     /// The level 1 page table lock guard is at index 0, and the level N page
     /// table lock guard is at index N - 1.
-    path: [Option<PageTableGuard<'rcu, E, C>>; MAX_NR_LEVELS],
+    path: [Option<PageTableGuard<'rcu, C>>; MAX_NR_LEVELS],
     /// The cursor should be used in a RCU read side critical section.
     #[expect(dead_code)]
     rcu_guard: &'rcu G,
@@ -80,7 +73,7 @@ pub struct Cursor<
     va: Vaddr,
     /// The virtual address range that is locked.
     barrier_va: Range<Vaddr>,
-    _phantom: PhantomData<&'pt PageTable<M, E, C>>,
+    _phantom: PhantomData<&'pt PageTable<C>>,
 }
 
 /// The maximum value of `PagingConstsTrait::NR_LEVELS`.
@@ -113,26 +106,18 @@ pub enum PageTableItem {
     },
 }
 
-impl<
-        'pt,
-        'rcu,
-        G: AsAtomicModeGuard,
-        M: PageTableMode,
-        E: PageTableEntryTrait,
-        C: PagingConstsTrait,
-    > Cursor<'pt, 'rcu, G, M, E, C>
-{
+impl<'pt, 'rcu, G: AsAtomicModeGuard, C: PageTableConfig> Cursor<'pt, 'rcu, G, C> {
     /// Creates a cursor claiming exclusive access over the given range.
     ///
     /// The cursor created will only be able to query or jump within the given
     /// range. Out-of-bound accesses will result in panics or errors as return values,
     /// depending on the access method.
     pub fn new(
-        pt: &'pt PageTable<M, E, C>,
+        pt: &'pt PageTable<C>,
         guard: &'rcu G,
         va: &Range<Vaddr>,
     ) -> Result<Self, PageTableError> {
-        if !M::covers(va) || va.is_empty() {
+        if !is_valid_range::<C>(va) || va.is_empty() {
             return Err(PageTableError::InvalidVaddrRange(va.start, va.end));
         }
         if va.start % C::BASE_PAGE_SIZE != 0 || va.end % C::BASE_PAGE_SIZE != 0 {
@@ -140,8 +125,7 @@ impl<
         }
 
         const { assert!(C::NR_LEVELS as usize <= MAX_NR_LEVELS) };
-
-        let new_pt_is_tracked = if should_map_as_tracked::<M>(va.start) {
+        let new_pt_is_tracked = if should_map_as_tracked::<C>(va.start) {
             MapTrackingStatus::Tracked
         } else {
             MapTrackingStatus::Untracked
@@ -306,31 +290,27 @@ impl<
     }
 
     /// Goes down a level to a child page table.
-    fn push_level(&mut self, child_guard: PageTableGuard<'rcu, E, C>) {
+    fn push_level(&mut self, child_pt: PageTableGuard<'rcu, C>) {
         self.level -= 1;
-        debug_assert_eq!(self.level, child_guard.level());
+        debug_assert_eq!(self.level, child_pt.level());
 
-        let old = self.path[self.level as usize - 1].replace(child_guard);
+        let old = self.path[self.level as usize - 1].replace(child_pt);
         debug_assert!(old.is_none());
     }
 
-    fn cur_entry<'s>(&'s mut self) -> Entry<'s, 'rcu, E, C> {
+    fn cur_entry<'s>(&'s mut self) -> Entry<'s, 'rcu, C> {
         let node = self.path[self.level as usize - 1].as_mut().unwrap();
         node.entry(pte_index::<C>(self.va, self.level))
     }
 }
 
-impl<G: AsAtomicModeGuard, M: PageTableMode, E: PageTableEntryTrait, C: PagingConstsTrait> Drop
-    for Cursor<'_, '_, G, M, E, C>
-{
+impl<G: AsAtomicModeGuard, C: PageTableConfig> Drop for Cursor<'_, '_, G, C> {
     fn drop(&mut self) {
         locking::unlock_range(self);
     }
 }
 
-impl<G: AsAtomicModeGuard, M: PageTableMode, E: PageTableEntryTrait, C: PagingConstsTrait> Iterator
-    for Cursor<'_, '_, G, M, E, C>
-{
+impl<G: AsAtomicModeGuard, C: PageTableConfig> Iterator for Cursor<'_, '_, G, C> {
     type Item = PageTableItem;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -349,31 +329,16 @@ impl<G: AsAtomicModeGuard, M: PageTableMode, E: PageTableEntryTrait, C: PagingCo
 /// in a page table can only be accessed by one cursor, regardless of the
 /// mutability of the cursor.
 #[derive(Debug)]
-pub struct CursorMut<
-    'pt,
-    'rcu,
-    G: AsAtomicModeGuard,
-    M: PageTableMode,
-    E: PageTableEntryTrait,
-    C: PagingConstsTrait,
->(Cursor<'pt, 'rcu, G, M, E, C>);
+pub struct CursorMut<'pt, 'rcu, G: AsAtomicModeGuard, C: PageTableConfig>(Cursor<'pt, 'rcu, G, C>);
 
-impl<
-        'pt,
-        'rcu,
-        G: AsAtomicModeGuard,
-        M: PageTableMode,
-        E: PageTableEntryTrait,
-        C: PagingConstsTrait,
-    > CursorMut<'pt, 'rcu, G, M, E, C>
-{
+impl<'pt, 'rcu, G: AsAtomicModeGuard, C: PageTableConfig> CursorMut<'pt, 'rcu, G, C> {
     /// Creates a cursor claiming exclusive access over the given range.
     ///
     /// The cursor created will only be able to map, query or jump within the given
     /// range. Out-of-bound accesses will result in panics or errors as return values,
     /// depending on the access method.
     pub(super) fn new(
-        pt: &'pt PageTable<M, E, C>,
+        pt: &'pt PageTable<C>,
         guard: &'rcu G,
         va: &Range<Vaddr>,
     ) -> Result<Self, PageTableError> {
@@ -437,7 +402,7 @@ impl<
             || self.0.va % page_size::<C>(self.0.level) != 0
             || self.0.va + page_size::<C>(self.0.level) > end
         {
-            debug_assert!(should_map_as_tracked::<M>(self.0.va));
+            debug_assert!(should_map_as_tracked::<C>(self.0.va));
             let mut cur_entry = self.0.cur_entry();
             match cur_entry.to_ref() {
                 Child::PageTableRef(pt) => {
@@ -519,8 +484,8 @@ impl<
             // We ensure not mapping in reserved kernel shared tables or releasing it.
             // Although it may be an invariant for all architectures and will be optimized
             // out by the compiler since `C::NR_LEVELS - 1 > C::HIGHEST_TRANSLATION_LEVEL`.
-            let is_kernel_shared_node =
-                TypeId::of::<M>() == TypeId::of::<KernelMode>() && self.0.level >= C::NR_LEVELS - 1;
+            let is_kernel_shared_node = TypeId::of::<C>() == TypeId::of::<KernelPtConfig>()
+                && self.0.level >= C::NR_LEVELS - 1;
             if self.0.level > C::HIGHEST_TRANSLATION_LEVEL
                 || is_kernel_shared_node
                 || self.0.va % page_size::<C>(self.0.level) != 0
@@ -555,10 +520,9 @@ impl<
                 continue;
             }
 
-            let level = self.0.level;
-
             // Map the current page.
-            debug_assert!(!should_map_as_tracked::<M>(self.0.va));
+            debug_assert!(!should_map_as_tracked::<C>(self.0.va));
+            let level = self.0.level;
             let mut cur_entry = self.0.cur_entry();
             let _ = cur_entry.replace(Child::Untracked(pa, level, prop));
 
@@ -669,7 +633,7 @@ impl<
                 }
                 Child::PageTable(pt) => {
                     assert!(
-                        !(TypeId::of::<M>() == TypeId::of::<KernelMode>()
+                        !(TypeId::of::<C>() == TypeId::of::<KernelPtConfig>()
                             && self.0.level == C::NR_LEVELS),
                         "Unmapping shared kernel page table nodes"
                     );
@@ -760,8 +724,8 @@ impl<
     }
 }
 
-fn should_map_as_tracked<M: PageTableMode>(va: Vaddr) -> bool {
-    (TypeId::of::<M>() == TypeId::of::<KernelMode>()
-        || TypeId::of::<M>() == TypeId::of::<UserMode>())
+fn should_map_as_tracked<C: PageTableConfig>(va: Vaddr) -> bool {
+    TypeId::of::<C>() == TypeId::of::<KernelPtConfig>()
         && crate::mm::kspace::should_map_as_tracked(va)
+        || TypeId::of::<C>() == TypeId::of::<UserPtConfig>()
 }
