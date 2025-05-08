@@ -92,6 +92,12 @@ impl FrameBuffer {
         self.height
     }
 
+    /// Get the IO memory of the framebuffer.
+    pub fn io_mem(&self) -> &IoMem {
+        // FIXME: Check the correctness of ownership
+        &self.io_mem
+    }
+
     /// Returns the physical address of the framebuffer.
     pub fn io_mem_base(&self) -> usize {
         self.base

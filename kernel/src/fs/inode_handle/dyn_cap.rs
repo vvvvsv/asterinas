@@ -79,14 +79,15 @@ impl FileLike for InodeHandle<Rights> {
     fn group(&self) -> Result<Gid>;
     fn set_group(&self, gid: Gid) -> Result<()>;
     fn seek(&self, seek_from: SeekFrom) -> Result<usize>;
-    fn mmap(
-        &self,
-        addr: Vaddr,
-        len: usize,
-        offset: usize,
-        perms: VmPerms,
-        ctx: &Context,
-    ) -> Result<Vaddr>;
+    // fn mmap(
+    //     &self,
+    //     addr: Vaddr,
+    //     len: usize,
+    //     offset: usize,
+    //     perms: VmPerms,
+    //     ctx: &Context,
+    // ) -> Result<Vaddr>;
+    fn get_io_mem(&self) -> Option<IoMem>;
 
     fn read(&self, writer: &mut VmWriter) -> Result<usize> {
         if !self.1.contains(Rights::READ) {

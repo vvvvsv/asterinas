@@ -4,6 +4,8 @@
 
 //! Opened File Handle
 
+use ostd::io::IoMem;
+
 use super::inode_handle::InodeHandle;
 use crate::{
     fs::utils::{AccessMode, FallocMode, InodeMode, IoctlCmd, Metadata, SeekFrom, StatusFlags},
@@ -48,15 +50,19 @@ pub trait FileLike: Pollable + Send + Sync + Any {
         return_errno_with_message!(Errno::EINVAL, "ioctl is not supported");
     }
 
-    fn mmap(
-        &self,
-        addr: Vaddr,
-        len: usize,
-        offset: usize,
-        perms: VmPerms,
-        ctx: &Context,
-    ) -> Result<Vaddr> {
-        return_errno_with_message!(Errno::EINVAL, "mmap is not supported");
+    // fn mmap(
+    //     &self,
+    //     addr: Vaddr,
+    //     len: usize,
+    //     offset: usize,
+    //     perms: VmPerms,
+    //     ctx: &Context,
+    // ) -> Result<Vaddr> {
+    //     return_errno_with_message!(Errno::EINVAL, "mmap is not supported");
+    // }
+
+    fn get_io_mem(&self) -> Option<IoMem> {
+        None
     }
 
     fn resize(&self, new_size: usize) -> Result<()> {

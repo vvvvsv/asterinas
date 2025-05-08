@@ -4,7 +4,7 @@
 
 use align_ext::AlignExt;
 pub(crate) use aster_framebuffer::get_framebuffer_info;
-use ostd::{boot::boot_info, Pod};
+use ostd::{boot::boot_info, io::IoMem, task::disable_preempt, Pod};
 
 use super::*;
 use crate::{
@@ -82,76 +82,64 @@ impl FileIo for Fb {
         Ok(reader.remain())
     }
 
-    fn mmap(
-        &self,
-        addr: Vaddr,
-        len: usize,
-        offset: usize,
-        perms: VmPerms,
-        ctx: &Context,
-    ) -> Result<Vaddr> {
-        println!("Fb mmap: Mapping framebuffer to user space");
+    // fn mmap(
+    //     &self,
+    //     addr: Vaddr,
+    //     len: usize,
+    //     offset: usize,
+    //     perms: VmPerms,
+    //     ctx: &Context,
+    // ) -> Result<Vaddr> {
+    //     println!("Fb mmap: Mapping framebuffer to user space");
     
-        // Get the user space context
-        let user_space: CurrentUserSpace<'_> = ctx.user_space();
-        let root_vmar = user_space.root_vmar();
-        println!("start to get framebuffer info, addr {:X}, len {:X}, offset {:X}",
-                addr, len, offset);
+    //     // Get the user space context
+    //     let user_space: CurrentUserSpace<'_> = ctx.user_space();
+    //     let root_vmar = user_space.root_vmar();
+    //     println!("start to get framebuffer info, addr {:X}, len {:X}, offset {:X}",
+    //             addr, len, offset);
 
-        //if let Some(framebuffer) = get_framebuffer_info().as_deref() {
-            // Ensure the framebuffer base address is page-aligned
-            let framebuffer_paddr_start = align_down(0x7eab2000 + offset, PAGE_SIZE);
-            let framebuffer_paddr_end = align_up(
-                framebuffer_paddr_start + len,
-                PAGE_SIZE,
-            );
-            println!("start to get vaddr_range");
-            // Ensure the virtual address range is page-aligned
-            let vaddr_range = if addr == 0 {
-                root_vmar.vm_space().allocate_virtual_address_range(len)?
-            } else {
-                align_down(addr, PAGE_SIZE)..align_up(addr + len, PAGE_SIZE)
-            };
+    //     if let Some(framebuffer) = get_framebuffer_info().as_deref() {
+    //         println!("start to get vaddr_range");
+    //         // Ensure the virtual address range is page-aligned
+    //         let vaddr_range = if addr == 0 {
+    //             root_vmar.vm_space().allocate_virtual_address_range(len)?
+    //         } else {
+    //             align_down(addr, PAGE_SIZE)..align_up(addr + len, PAGE_SIZE)
+    //         };
     
-            println!(
-                "Got vaddr_range start: {:X}, end: {:X}",
-                vaddr_range.start, vaddr_range.end
-            );
+    //         println!(
+    //             "Got vaddr_range start: {:X}, end: {:X}",
+    //             vaddr_range.start, vaddr_range.end
+    //         );
+
+            
+    //         let preempt_guard = disable_preempt();
     
-            // Create a mutable cursor for the virtual address range
-            let mut cursor = root_vmar.vm_space().cursor_mut(&vaddr_range)?;
-            println!("Got cursor");
+    //         // Create a mutable cursor for the virtual address range
+    //         let mut cursor = root_vmar.vm_space().cursor_mut(&preempt_guard, &vaddr_range)?;
+    //         println!("Got cursor");
     
-            // Map each page in the framebuffer's physical address range
-            let mut current_paddr = framebuffer_paddr_start;
-            let mut current_vaddr = vaddr_range.start;
-            println!("Start to map");
+    //         // Map the framebuffer memory to the user space
+    //         let io_page_prop = PageProperty::new(
+    //             PageFlags::from(perms),
+    //             CachePolicy::Uncacheable,
+    //         );
+    //         cursor.map_iomem(framebuffer.io_mem(), io_page_prop);
     
-            while current_paddr < framebuffer_paddr_end {
-                // Create a Frame<dyn AnyFrameMeta> from the physical address
-                let dyn_frame = Frame::from_in_use(current_paddr)
-                    .map_err(|_| Errno::ENOMEM)?; // Handle errors if the frame is not in use
-                //println!("Got dyn_frame");
-                // Convert the Frame<dyn AnyFrameMeta> to a UFrame
-                let frame = UFrame::try_from(dyn_frame)
-                    .map_err(|_| Errno::EINVAL)?; // Handle errors if the frame is not untyped
-                //println!("Got UFrame");
-                // Map the frame to the virtual address
-                let temp_perms = PageProperty::new(PageFlags::RW, CachePolicy::Writeback);
-                cursor.map(frame, temp_perms);
-    
-                //println!("cur_paddr {:X}, cur_vaddr {:X}", current_paddr, current_vaddr);
-    
-                // Move to the next page
-                current_paddr += PAGE_SIZE;
-                current_vaddr += PAGE_SIZE;
-            }
-    
-            Ok(vaddr_range.start) // Return the starting virtual address
-        // } else {
-        //     println!("ENOMEM");
-        //     Err(Errno::ENOMEM.into())
-        // }
+    //         Ok(vaddr_range.start) // Return the starting virtual address
+    //     } else {
+    //         println!("ENOMEM");
+    //         Err(Errno::ENOMEM.into())
+    //     }
+    // }
+
+    fn get_io_mem(&self) -> Option<IoMem> {
+        if let Some(framebuffer) = get_framebuffer_info() {
+            let iomem = framebuffer.io_mem();
+            Some(iomem.clone())
+        } else {
+            None
+        }
     }
 
     fn ioctl(&self, cmd: IoctlCmd, arg: usize) -> Result<i32> {
