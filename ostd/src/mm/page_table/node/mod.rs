@@ -41,7 +41,7 @@ use crate::mm::{
     frame::{meta::AnyFrameMeta, Frame, FrameRef},
     paddr_to_vaddr,
     page_table::{load_pte, store_pte},
-    FrameAllocOptions, Infallible, Paddr, PagingConstsTrait, PagingLevel, VmReader,
+    FrameAllocOptions, Infallible, PagingConstsTrait, PagingLevel, VmReader,
 };
 
 /// A smart pointer to a page table node.
@@ -54,9 +54,6 @@ use crate::mm::{
 /// [`PageTableNode`] is read-only. To modify the page table node, lock and use
 /// [`PageTableGuard`].
 pub(super) type PageTableNode<E, C> = Frame<PageTablePageMeta<E, C>>;
-
-/// A reference to a page table node.
-pub(super) type PageTableNodeRef<'a, E, C> = FrameRef<'a, PageTablePageMeta<E, C>>;
 
 impl<E: PageTableEntryTrait, C: PagingConstsTrait> PageTableNode<E, C> {
     pub(super) fn level(&self) -> PagingLevel {
@@ -145,6 +142,23 @@ impl<E: PageTableEntryTrait, C: PagingConstsTrait> PageTableNode<E, C> {
     }
 }
 
+/// A reference to a page table node.
+pub(super) type PageTableNodeRef<'a, E, C> = FrameRef<'a, PageTablePageMeta<E, C>>;
+
+impl<'a, E: PageTableEntryTrait, C: PagingConstsTrait> PageTableNodeRef<'a, E, C> {
+    /// Creates a new [`PageTableGuard`] without checking if the page table lock is held.
+    ///
+    /// # Safety
+    ///
+    /// This function must be called if this task logically holds the lock.
+    ///
+    /// Calling this function when a guard is already created is undefined behavior
+    /// unless that guard was already forgotten.
+    pub(super) unsafe fn make_guard_unchecked(self) -> PageTableGuard<'a, E, C> {
+        PageTableGuard { inner: self }
+    }
+}
+
 /// A guard that holds the lock of a page table node.
 #[derive(Debug)]
 pub(super) struct PageTableGuard<'a, E: PageTableEntryTrait, C: PagingConstsTrait> {
@@ -162,27 +176,6 @@ impl<'a, E: PageTableEntryTrait, C: PagingConstsTrait> PageTableGuard<'a, E, C> 
         assert!(idx < nr_subpage_per_huge::<C>());
         // SAFETY: The index is within the bound.
         unsafe { Entry::new_at(self, idx) }
-    }
-
-    /// Converts the guard into a raw physical address.
-    ///
-    /// It will not release the lock. It may be paired with [`Self::from_raw_paddr`]
-    /// to manually manage pointers.
-    pub(super) fn into_raw_paddr(self) -> Paddr {
-        self.start_paddr()
-    }
-
-    /// Converts a raw physical address to a guard.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the physical address is valid and points to
-    /// a forgotten page table node that is locked (see [`Self::into_raw_paddr`]).
-    pub(super) unsafe fn from_raw_paddr(paddr: Paddr) -> Self {
-        Self {
-            // SAFETY: The caller ensures safety.
-            inner: unsafe { PageTableNodeRef::borrow_paddr(paddr) },
-        }
     }
 
     /// Gets the number of valid PTEs in the node.

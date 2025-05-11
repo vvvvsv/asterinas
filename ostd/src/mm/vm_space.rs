@@ -23,7 +23,7 @@ use crate::{
         PageProperty, UFrame, VmReader, VmWriter, MAX_USERSPACE_VADDR,
     },
     prelude::*,
-    task::{disable_preempt, DisabledPreemptGuard},
+    task::{atomic_mode::AsAtomicModeGuard, disable_preempt, DisabledPreemptGuard},
     Error,
 };
 
@@ -85,8 +85,12 @@ impl VmSpace {
     ///
     /// The creation of the cursor may block if another cursor having an
     /// overlapping range is alive.
-    pub fn cursor(&self, va: &Range<Vaddr>) -> Result<Cursor<'_>> {
-        Ok(self.pt.cursor(va).map(Cursor)?)
+    pub fn cursor<'pt, 'rcu, G: AsAtomicModeGuard>(
+        &'pt self,
+        guard: &'rcu G,
+        va: &Range<Vaddr>,
+    ) -> Result<Cursor<'pt, 'rcu, G>> {
+        Ok(self.pt.cursor(guard, va).map(Cursor)?)
     }
 
     /// Gets an mutable cursor in the virtual address range.
@@ -99,8 +103,12 @@ impl VmSpace {
     /// The creation of the cursor may block if another cursor having an
     /// overlapping range is alive. The modification to the mapping by the
     /// cursor may also block or be overridden the mapping of another cursor.
-    pub fn cursor_mut(&self, va: &Range<Vaddr>) -> Result<CursorMut<'_, '_>> {
-        Ok(self.pt.cursor_mut(va).map(|pt_cursor| CursorMut {
+    pub fn cursor_mut<'pt, 'rcu, G: AsAtomicModeGuard>(
+        &'pt self,
+        guard: &'rcu G,
+        va: &Range<Vaddr>,
+    ) -> Result<CursorMut<'pt, 'rcu, 'pt, G>> {
+        Ok(self.pt.cursor_mut(guard, va).map(|pt_cursor| CursorMut {
             pt_cursor,
             flusher: TlbFlusher::new(&self.cpus, disable_preempt()),
         })?)
@@ -190,9 +198,11 @@ impl Default for VmSpace {
 /// It exclusively owns a sub-tree of the page table, preventing others from
 /// reading or modifying the same sub-tree. Two read-only cursors can not be
 /// created from the same virtual address range either.
-pub struct Cursor<'a>(page_table::Cursor<'a, UserMode, PageTableEntry, PagingConsts>);
+pub struct Cursor<'pt, 'rcu, G: AsAtomicModeGuard>(
+    page_table::Cursor<'pt, 'rcu, G, UserMode, PageTableEntry, PagingConsts>,
+);
 
-impl Iterator for Cursor<'_> {
+impl<G: AsAtomicModeGuard> Iterator for Cursor<'_, '_, G> {
     type Item = VmItem;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -204,7 +214,7 @@ impl Iterator for Cursor<'_> {
     }
 }
 
-impl Cursor<'_> {
+impl<G: AsAtomicModeGuard> Cursor<'_, '_, G> {
     /// Query about the current slot.
     ///
     /// This function won't bring the cursor to the next slot.
@@ -228,14 +238,14 @@ impl Cursor<'_> {
 ///
 /// It exclusively owns a sub-tree of the page table, preventing others from
 /// reading or modifying the same sub-tree.
-pub struct CursorMut<'a, 'b> {
-    pt_cursor: page_table::CursorMut<'a, UserMode, PageTableEntry, PagingConsts>,
+pub struct CursorMut<'pt, 'rcu, 'vmspace, G: AsAtomicModeGuard> {
+    pt_cursor: page_table::CursorMut<'pt, 'rcu, G, UserMode, PageTableEntry, PagingConsts>,
     // We have a read lock so the CPU set in the flusher is always a superset
     // of actual activated CPUs.
-    flusher: TlbFlusher<'b, DisabledPreemptGuard>,
+    flusher: TlbFlusher<'vmspace, DisabledPreemptGuard>,
 }
 
-impl<'b> CursorMut<'_, 'b> {
+impl<'vmspace, G: AsAtomicModeGuard> CursorMut<'_, '_, 'vmspace, G> {
     /// Query about the current slot.
     ///
     /// This is the same as [`Cursor::query`].
@@ -262,7 +272,7 @@ impl<'b> CursorMut<'_, 'b> {
     }
 
     /// Get the dedicated TLB flusher for this cursor.
-    pub fn flusher(&mut self) -> &mut TlbFlusher<'b, DisabledPreemptGuard> {
+    pub fn flusher(&mut self) -> &mut TlbFlusher<'vmspace, DisabledPreemptGuard> {
         &mut self.flusher
     }
 

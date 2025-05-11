@@ -11,7 +11,10 @@ use core::{num::NonZeroUsize, ops::Range};
 
 use align_ext::AlignExt;
 use aster_rights::Rights;
-use ostd::mm::{tlb::TlbFlushOp, PageFlags, PageProperty, VmSpace, MAX_USERSPACE_VADDR};
+use ostd::{
+    mm::{tlb::TlbFlushOp, PageFlags, PageProperty, VmSpace, MAX_USERSPACE_VADDR},
+    task::disable_preempt,
+};
 
 use self::{
     interval_set::{Interval, IntervalSet},
@@ -355,9 +358,13 @@ impl Vmar_ {
 
     /// Clears all content of the root VMAR.
     fn clear_root_vmar(&self) -> Result<()> {
+        let preempt_guard = disable_preempt();
         {
             let full_range = 0..MAX_USERSPACE_VADDR;
-            let mut cursor = self.vm_space.cursor_mut(&full_range).unwrap();
+            let mut cursor = self
+                .vm_space
+                .cursor_mut(&preempt_guard, &full_range)
+                .unwrap();
             cursor.unmap(full_range.len());
             cursor.flusher().sync_tlb_flush();
         }
@@ -417,6 +424,8 @@ impl Vmar_ {
     }
 
     pub(super) fn new_fork_root(self: &Arc<Self>) -> Result<Arc<Self>> {
+        let preempt_guard = disable_preempt();
+
         let new_vmar_ = {
             let vmar_inner = VmarInner::new();
             let new_space = VmSpace::new();
@@ -430,9 +439,9 @@ impl Vmar_ {
             // Clone mappings.
             let new_vmspace = new_vmar_.vm_space();
             let range = self.base..(self.base + self.size);
-            let mut new_cursor = new_vmspace.cursor_mut(&range).unwrap();
+            let mut new_cursor = new_vmspace.cursor_mut(&preempt_guard, &range).unwrap();
             let cur_vmspace = self.vm_space();
-            let mut cur_cursor = cur_vmspace.cursor_mut(&range).unwrap();
+            let mut cur_cursor = cur_vmspace.cursor_mut(&preempt_guard, &range).unwrap();
             for vm_mapping in inner.vm_mappings.iter() {
                 let base = vm_mapping.map_to_addr();
 

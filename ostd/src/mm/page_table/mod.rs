@@ -14,6 +14,8 @@ use super::{
 };
 use crate::{
     arch::mm::{PageTableEntry, PagingConsts},
+    sync::RcuDrop,
+    task::{atomic_mode::AsAtomicModeGuard, disable_preempt},
     util::marker::SameSizeAs,
     Pod,
 };
@@ -86,7 +88,7 @@ pub struct PageTable<
     E: PageTableEntryTrait = PageTableEntry,
     C: PagingConstsTrait = PagingConsts,
 > {
-    root: PageTableNode<E, C>,
+    root: RcuDrop<PageTableNode<E, C>>,
     _phantom: PhantomData<M>,
 }
 
@@ -159,7 +161,7 @@ impl PageTable<KernelMode> {
         drop(new_node);
 
         PageTable::<UserMode> {
-            root: new_root,
+            root: RcuDrop::new(new_root),
             _phantom: PhantomData,
         }
     }
@@ -177,7 +179,8 @@ impl PageTable<KernelMode> {
         vaddr: &Range<Vaddr>,
         mut op: impl FnMut(&mut PageProperty),
     ) -> Result<(), PageTableError> {
-        let mut cursor = CursorMut::new(self, vaddr)?;
+        let preempt_guard = disable_preempt();
+        let mut cursor = CursorMut::new(self, &preempt_guard, vaddr)?;
         while let Some(range) = cursor.protect_next(vaddr.end - cursor.virt_addr(), &mut op) {
             crate::arch::mm::tlb_flush_addr(range.start);
         }
@@ -191,7 +194,10 @@ impl<'a, M: PageTableMode, E: PageTableEntryTrait, C: PagingConstsTrait> PageTab
     /// Useful for the IOMMU page tables only.
     pub fn empty() -> Self {
         PageTable {
-            root: PageTableNode::<E, C>::alloc(C::NR_LEVELS, MapTrackingStatus::NotApplicable),
+            root: RcuDrop::new(PageTableNode::<E, C>::alloc(
+                C::NR_LEVELS,
+                MapTrackingStatus::NotApplicable,
+            )),
             _phantom: PhantomData,
         }
     }
@@ -214,7 +220,8 @@ impl<'a, M: PageTableMode, E: PageTableEntryTrait, C: PagingConstsTrait> PageTab
         paddr: &Range<Paddr>,
         prop: PageProperty,
     ) -> Result<(), PageTableError> {
-        self.cursor_mut(vaddr)?.map_pa(paddr, prop);
+        let preempt_guard = disable_preempt();
+        self.cursor_mut(&preempt_guard, vaddr)?.map_pa(paddr, prop);
         Ok(())
     }
 
@@ -233,11 +240,12 @@ impl<'a, M: PageTableMode, E: PageTableEntryTrait, C: PagingConstsTrait> PageTab
     ///
     /// If another cursor is already accessing the range, the new cursor may wait until the
     /// previous cursor is dropped.
-    pub fn cursor_mut(
+    pub fn cursor_mut<'rcu, G: AsAtomicModeGuard>(
         &'a self,
+        guard: &'rcu G,
         va: &Range<Vaddr>,
-    ) -> Result<CursorMut<'a, M, E, C>, PageTableError> {
-        CursorMut::new(self, va)
+    ) -> Result<CursorMut<'a, 'rcu, G, M, E, C>, PageTableError> {
+        CursorMut::new(self, guard, va)
     }
 
     /// Create a new cursor exclusively accessing the virtual address range for querying.
@@ -245,8 +253,12 @@ impl<'a, M: PageTableMode, E: PageTableEntryTrait, C: PagingConstsTrait> PageTab
     /// If another cursor is already accessing the range, the new cursor may wait until the
     /// previous cursor is dropped. The modification to the mapping by the cursor may also
     /// block or be overridden by the mapping of another cursor.
-    pub fn cursor(&'a self, va: &Range<Vaddr>) -> Result<Cursor<'a, M, E, C>, PageTableError> {
-        Cursor::new(self, va)
+    pub fn cursor<'rcu, G: AsAtomicModeGuard>(
+        &'a self,
+        guard: &'rcu G,
+        va: &Range<Vaddr>,
+    ) -> Result<Cursor<'a, 'rcu, G, M, E, C>, PageTableError> {
+        Cursor::new(self, guard, va)
     }
 
     /// Create a new reference to the same page table.
