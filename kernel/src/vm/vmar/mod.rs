@@ -4,6 +4,7 @@
 
 mod dyn_cap;
 mod interval_set;
+mod oom;
 mod per_cpu_counter;
 mod static_cap;
 pub mod vm_mapping;
@@ -407,8 +408,15 @@ impl Vmar_ {
                 self.add_rss_counter(rss_type, count);
             };
 
-            vm_mapping.handle_page_fault(&self.vm_space, page_fault_info, &mut add_rss_callback)?;
-            return Ok(());
+            let res = vm_mapping.handle_page_fault(
+                &self.vm_space,
+                page_fault_info,
+                &mut add_rss_callback,
+            );
+            if res.is_err_and(|e| e.error() == Errno::ENOMEM) {
+                return oom::out_of_memory();
+            }
+            return res;
         }
 
         return_errno_with_message!(Errno::EACCES, "page fault addr is not in current vmar");

@@ -94,7 +94,7 @@ pub struct Process {
 
     /// Whether the process has a subreaper that will reap it when the
     /// process becomes orphaned.
-    ///  
+    ///
     /// If `has_child_subreaper` is true in a `Process`, this attribute should
     /// also be true for all of its descendants.
     pub(super) has_child_subreaper: AtomicBool,
@@ -592,6 +592,10 @@ impl Process {
 
     pub fn init_stack_reader(&self) -> InitStackReader {
         self.process_vm.init_stack_reader()
+    }
+
+    pub fn get_rss(&self) -> usize {
+        self.lock_root_vmar().unwrap().get_rss()
     }
 
     // ****************** Signal ******************
