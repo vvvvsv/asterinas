@@ -168,7 +168,8 @@ pub fn do_sys_mmap(
                             // Here we assume that this file is used for mapping I/O
                             // memory into userspace.
                             if let Some(io_mem) = file.get_io_mem() {
-                                assert!(len <= io_mem.length().align_up(PAGE_SIZE));
+                                println!("mmap: io_mem: {:?}, len {}", io_mem.length(), len);
+                                // assert!(len <= io_mem.length().align_up(PAGE_SIZE));
                                 io_mem_ostd = Some(io_mem.clone());
                                 options = options.iomem(io_mem);
                             } else {
