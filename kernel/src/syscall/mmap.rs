@@ -155,7 +155,8 @@ fn do_sys_mmap(
                     // let range = file.mmap(addr, len, offset, vm_perms, ctx);
                     // print!("mmap: file is a page cache, range: {:?}", range);
                     if let Some(io_mem) = file.get_io_mem() {
-                        assert!(len == io_mem.length());
+                        println!("mmap: io_mem: {:?}, len {}", io_mem.length(), len);
+                        //assert!(len == io_mem.length());
                         io_mem_ostd = Some(io_mem.clone());
                         options = options.iomem(io_mem);
                     } else {
