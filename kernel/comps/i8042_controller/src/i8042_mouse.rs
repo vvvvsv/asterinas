@@ -2,33 +2,24 @@
 
 //! The i8042 mouse driver.
 
-use core::sync::atomic::{AtomicBool, Ordering};
 use ostd::{
-    arch::{device::io_port::ReadWriteAccess},
-    io::IoPort,
-    sync::SpinLock,
-    trap::{IrqLine, TrapFrame},
+    trap::TrapFrame,
     sync::Mutex,
 };
-use spin::Once;
 use alloc::sync::Arc;
 
 use aster_input::{InputDevice, InputDeviceMeta, InputEvent, input_event, InputID};
 
 use aster_time::tsc::read_instant;
-use core::hint::spin_loop;
 use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::alloc::string::ToString;
 use super::MOUSE_CALLBACKS;
-use crate::MOUSE_WRITE;
 use aster_input::event_type_codes::*;
 
 
 use crate::DATA_PORT;
-use crate::STATUS_PORT;
-use crate::MOUSE_IRQ_LINE;
 
 pub fn init() {
     log::error!("This is init in kernel/comps/mouse/src/i8042_mouse.rs");
@@ -110,7 +101,6 @@ pub fn handle_mouse_input(_trap_frame: &TrapFrame) {
     }
 }
 
-use ostd::prelude::println;
 fn handle_mouse_packet(packet: MousePacket) {
     let mut events = parse_input_events(packet);  
     
@@ -147,25 +137,6 @@ pub struct MousePacket {
 impl MousePacket {
     fn read_one_byte() -> u8 {
         DATA_PORT.get().unwrap().read()
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Status(u8);
-
-impl Status {
-    const STAT_OUTPUT_BUFFER_FULL: u8 = 0x01; /* Mouse output buffer full */
-
-    fn read() -> Self {
-        Self(STATUS_PORT.get().unwrap().read())
-    }
-
-    fn is_valid(&self) -> bool {
-        self.0 != 0xFF
-    }
-
-    fn output_buffer_is_full(&self) -> bool {
-        self.0 & Self::STAT_OUTPUT_BUFFER_FULL == 1
     }
 }
 
