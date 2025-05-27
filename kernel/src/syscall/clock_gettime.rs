@@ -21,8 +21,6 @@ use crate::{
     },
 };
 
-use ostd::mm::Infallible;
-
 pub fn sys_clock_gettime(
     clockid: clockid_t,
     timespec_addr: Vaddr,

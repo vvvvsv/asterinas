@@ -13,7 +13,7 @@ use ostd::{
     arch::{device::io_port::ReadWriteAccess, IO_APIC},
     io::IoPort,
     sync::SpinLock,
-    trap::{IrqLine, TrapFrame},
+    trap::IrqLine,
 };
 use core::hint::spin_loop;
 

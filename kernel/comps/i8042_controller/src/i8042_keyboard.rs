@@ -4,13 +4,7 @@
 
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use ostd::{
-    arch::{device::io_port::ReadWriteAccess, IO_APIC},
-    io::IoPort,
-    sync::SpinLock,
-    trap::{IrqLine, TrapFrame},
-};
-use spin::Once;
+use ostd::trap::TrapFrame;
 use alloc::{sync::Arc, vec::Vec};
 use aster_input::{InputDevice, InputDeviceMeta, InputEvent, input_event, InputID};
 use aster_time::tsc::read_instant;
@@ -22,7 +16,6 @@ use super::{InputKey, KEYBOARD_CALLBACKS};
 
 use crate::DATA_PORT;
 use crate::STATUS_PORT;
-use crate::KEYBOARD_IRQ_LINE;
 
 
 pub fn init() {
