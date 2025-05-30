@@ -69,7 +69,6 @@ fn init() -> Result<(), ComponentInitError> {
     init_i8042_controller();
     init_mouse_device();
 
-
     let mut k_irq_line = IrqLine::alloc().unwrap();
     let mut m_irq_line = IrqLine::alloc().unwrap();
     k_irq_line.on_active(handle_keyboard_input);
@@ -82,8 +81,6 @@ fn init() -> Result<(), ComponentInitError> {
     KEYBOARD_IRQ_LINE.call_once(|| {SpinLock::new(k_irq_line)});
     MOUSE_IRQ_LINE.call_once(|| {SpinLock::new(m_irq_line)});
     
-    // init_mouse_device();
-
     i8042_keyboard::init();
     i8042_mouse::init();
     Ok(())
@@ -151,7 +148,6 @@ fn wait_ack() {
 pub type MouseCallback = dyn Fn() + Send + Sync;
 
 pub fn mouse_register_callback(callback: &'static MouseCallback) {
-    log::error!("This is register_callback in kernel/comps/mouse/src/lib.rs");
     MOUSE_CALLBACKS
         .disable_irq()
         .lock()
