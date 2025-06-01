@@ -271,11 +271,11 @@ provided by Linux on x86-64 architecture.
 | 248     | add_key          | ❌              |
 | 249     | request_key      | ❌              |
 | 250     | keyctl           | ❌              |
-| 251     | ioprio_set       | ❌              |
-| 252     | ioprio_get       | ❌              |
-| 253     | inotify_init     | ✅              |
-| 254     | inotify_add_watch | ✅             |
-| 255     | inotify_rm_watch | ✅               |
+| 251     | ioprio_set       | ✅              |
+| 252     | ioprio_get       | ✅              |
+| 253     | inotify_init     | ❌              |
+| 254     | inotify_add_watch | ❌             |
+| 255     | inotify_rm_watch | ❌              |
 | 256     | migrate_pages    | ❌              |
 | 257     | openat           | ✅              |
 | 258     | mkdirat          | ✅              |

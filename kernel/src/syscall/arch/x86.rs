@@ -30,6 +30,7 @@ use crate::syscall::{
     fork::{sys_fork, sys_vfork},
     fsync::{sys_fdatasync, sys_fsync},
     futex::sys_futex,
+    get_io_prio::sys_get_ioprio,
     get_priority::sys_get_priority,
     getcpu::sys_getcpu,
     getcwd::sys_getcwd,
@@ -112,6 +113,7 @@ use crate::syscall::{
     sendfile::sys_sendfile,
     sendmsg::sys_sendmsg,
     sendto::sys_sendto,
+    set_io_prio::sys_set_ioprio,
     set_priority::sys_set_priority,
     set_robust_list::sys_set_robust_list,
     set_tid_address::sys_set_tid_address,
@@ -329,6 +331,8 @@ impl_syscall_nums_and_dispatch_fn! {
     SYS_TGKILL = 234           => sys_tgkill(args[..3]);
     SYS_UTIMES = 235           => sys_utimes(args[..2]);
     SYS_WAITID = 247           => sys_waitid(args[..5]);
+    SYS_SET_IO_PRIORITY = 251  => sys_set_ioprio(args[..3]);
+    SYS_GET_IO_PRIORITY = 252  => sys_get_ioprio(args[..3]);
     SYS_INOTIFY_INIT = 253     => sys_inotify_init(args[..0]);
     SYS_INOTIFY_ADD_WATCH = 254 => sys_inotify_add_watch(args[..3]);
     SYS_INOTIFY_RM_WATCH = 255 => sys_inotify_rm_watch(args[..2]);
