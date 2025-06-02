@@ -344,6 +344,7 @@ provided by Linux on x86-64 architecture.
 | 435	  | clone3           | ✅              |
 | 436	  | close_range      | ✅              |
 | 439     | faccessat2       | ✅              |
+| 441     | epoll_pwait2     | ✅              |
 
 ## File Systems
 
