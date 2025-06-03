@@ -527,6 +527,7 @@ pub struct VmarMapOptions<'a, R1, R2> {
     parent: &'a Vmar<R1>,
     vmo: Option<Vmo<R2>>,
     iomem: Option<IoMem>,
+    shared_mem_id: Option<u64>,
     perms: VmPerms,
     vmo_offset: usize,
     vmo_limit: usize,
@@ -552,6 +553,7 @@ impl<'a, R1, R2> VmarMapOptions<'a, R1, R2> {
             parent,
             vmo: None,
             iomem: None,
+            shared_mem_id: None,
             perms,
             vmo_offset: 0,
             vmo_limit: usize::MAX,
@@ -591,6 +593,12 @@ impl<'a, R1, R2> VmarMapOptions<'a, R1, R2> {
     pub fn iomem(mut self, iomem: IoMem) -> Self {
         self.iomem = Some(iomem);
 
+        self
+    }
+
+    /// Binds a shared memory object to the mapping.
+    pub fn shared_mem_id(mut self, shmid: u64) -> Self {
+        self.shared_mem_id = Some(shmid);
         self
     }
 
@@ -678,6 +686,7 @@ where
             parent,
             vmo,
             iomem,
+            shared_mem_id,
             perms,
             vmo_offset,
             vmo_limit,
@@ -739,6 +748,7 @@ where
             NonZeroUsize::new(map_size).unwrap(),
             map_to_addr,
             vmo,
+            shared_mem_id,
             is_shared,
             handle_page_faults_around,
             perms,
@@ -781,7 +791,6 @@ where
         let Some(vmo) = &self.vmo else {
             return Ok(());
         };
-
         let perm_rights = Rights::from(self.perms);
         vmo.check_rights(perm_rights)
     }
