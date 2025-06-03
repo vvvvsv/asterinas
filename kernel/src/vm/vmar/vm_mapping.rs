@@ -65,6 +65,8 @@ pub struct VmMapping {
     /// If the inode is `Some`, it means that the mapping is file-backed.
     /// And the `vmo` field must be the page cache of the inode.
     inode: Option<Arc<dyn Inode>>,
+    /// The shared memory ID if the mapping is a shared memory mapping.
+    shared_mem: Option<u64>,
     /// Whether the mapping is shared.
     ///
     /// The updates to a shared mapping are visible among processes, or carried
@@ -93,6 +95,7 @@ impl VmMapping {
         map_to_addr: Vaddr,
         vmo: MappedVmObj,
         inode: Option<Arc<dyn Inode>>,
+        shared_mem: Option<u64>,
         is_shared: bool,
         handle_page_faults_around: bool,
         perms: VmPerms,
@@ -102,6 +105,7 @@ impl VmMapping {
             map_to_addr,
             vmo,
             inode,
+            shared_mem,
             is_shared,
             handle_page_faults_around,
             perms,
@@ -140,6 +144,11 @@ impl VmMapping {
     /// Returns the permissions of pages in the mapping.
     pub fn perms(&self) -> VmPerms {
         self.perms
+    }
+
+    /// Returns the shared memory ID if the mapping is a shared memory mapping.
+    pub fn shared_mem(&self) -> Option<u64> {
+        self.shared_mem
     }
 
     /// Returns the inode of the file that backs the mapping.
