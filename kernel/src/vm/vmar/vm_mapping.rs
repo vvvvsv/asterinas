@@ -57,7 +57,7 @@ pub(super) struct VmMapping {
     /// specified in [`MappedVmo`].
     vmo: MappedVmObj,
     /// The shared memory ID if the mapping is a shared memory mapping.
-    shared_mem: Option<u64>,
+    shared_mem_id: Option<u64>,
     /// Whether the mapping is shared.
     ///
     /// The updates to a shared mapping are visible among processes, or carried
@@ -94,7 +94,7 @@ impl VmMapping {
             map_size,
             map_to_addr,
             vmo,
-            shared_mem,
+            shared_mem_id: shared_mem,
             is_shared,
             handle_page_faults_around,
             perms,
@@ -129,8 +129,8 @@ impl VmMapping {
     }
 
     /// Returns the shared memory ID if the mapping is a shared memory mapping.
-    pub fn shared_mem(&self) -> Option<u64> {
-        self.shared_mem
+    pub fn shared_mem_id(&self) -> Option<u64> {
+        self.shared_mem_id
     }
 }
 
