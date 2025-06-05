@@ -83,6 +83,7 @@ mod munmap;
 mod nanosleep;
 mod open;
 mod pause;
+mod pidfd_open;
 mod pipe;
 mod poll;
 mod ppoll;
