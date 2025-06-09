@@ -336,6 +336,7 @@ provided by Linux on x86-64 architecture.
 | 313	  | finit_module     | ❌              |
 | 314	  | sched_setattr    | ✅              |
 | 315	  | sched_getattr    | ✅              |
+| 317     | seccomp          | ✅              |
 | 318	  | getrandom        | ✅              |
 | 319	  | memfd_create     | ✅              |
 | 322	  | execveat         | ✅              |
