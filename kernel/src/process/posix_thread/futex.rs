@@ -90,7 +90,7 @@ pub fn futex_wait_bitset(
 }
 
 /// Does futex wake
-pub fn futex_wake(futex_addr: Vaddr, max_count: usize, pid: Option<Pid>) -> Result<usize> {
+pub fn futex_wake(futex_addr: Vaddr, max_count: usize, pid: Option<Pid>) -> Result<isize> {
     futex_wake_bitset(futex_addr, max_count, FUTEX_BITSET_MATCH_ANY, pid)
 }
 
@@ -100,7 +100,7 @@ pub fn futex_wake_bitset(
     max_count: usize,
     bitset: FutexBitSet,
     pid: Option<Pid>,
-) -> Result<usize> {
+) -> Result<isize> {
     debug!(
         "futex_wake_bitset addr: {:#x}, max_count: {}, bitset: {:#x}",
         futex_addr, max_count, bitset
@@ -254,7 +254,7 @@ pub fn futex_requeue(
     max_nrequeues: usize,
     futex_new_addr: Vaddr,
     pid: Option<Pid>,
-) -> Result<usize> {
+) -> Result<isize> {
     if futex_new_addr == futex_addr {
         return futex_wake(futex_addr, max_nwakes, pid);
     }
@@ -295,7 +295,7 @@ pub fn futex_requeue(
             nwakes
         }
     };
-    Ok(nwakes)
+    Ok(nwakes as isize)
 }
 
 static FUTEX_BUCKETS: Once<FutexBucketVec> = Once::new();
