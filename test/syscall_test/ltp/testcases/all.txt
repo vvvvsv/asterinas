@@ -1818,7 +1818,7 @@ futex_wake01
 futex_wait_bitset01
 
 # memfd_create01
-# memfd_create02
+memfd_create02
 # memfd_create03
 # memfd_create04
 
