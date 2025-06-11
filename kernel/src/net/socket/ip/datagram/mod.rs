@@ -15,7 +15,7 @@ use crate::{
         private::SocketPrivate,
         util::{
             datagram_common::{select_remote_and_bind, Bound, Inner},
-            options::{SetSocketLevelOption, SocketOptionSet},
+            options::{GetSocketLevelOption, SetSocketLevelOption, SocketOptionSet},
             send_recv_flags::SendRecvFlags,
             socket_addr::SocketAddr,
             MessageHeader,
@@ -227,7 +227,8 @@ impl Socket for DatagramSocket {
             _ => ()
         });
 
-        self.options.read().socket.get_option(option)
+        let inner = self.inner.read();
+        self.options.read().socket.get_option(option, &*inner)
     }
 
     fn set_option(&self, option: &dyn SocketOption) -> Result<()> {
@@ -254,6 +255,12 @@ impl Socket for DatagramSocket {
                 Ok(())
             }
         }
+    }
+}
+
+impl GetSocketLevelOption for Inner<UnboundDatagram, BoundDatagram> {
+    fn is_listening(&self) -> bool {
+        false
     }
 }
 
