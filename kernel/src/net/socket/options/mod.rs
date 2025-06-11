@@ -4,6 +4,7 @@ use crate::{
     impl_socket_options,
     net::socket::{unix::CUserCred, util::options::FilterProgram},
     prelude::*,
+    process::Gid,
 };
 mod macros;
 
@@ -31,4 +32,5 @@ impl_socket_options!(
     pub struct AcceptConn(bool);
     pub struct SendBufForce(u32);
     pub struct RecvBufForce(u32);
+    pub struct PeerGroups(Arc<[Gid]>);
 );

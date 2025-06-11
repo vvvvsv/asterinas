@@ -10,13 +10,13 @@ use crate::{
     current_userspace, match_sock_option_mut, match_sock_option_ref,
     net::socket::{
         options::{
-            AcceptConn, AttachFilter, KeepAlive, Linger, PassCred, PeerCred, Priority, RecvBuf,
-            RecvBufForce, ReuseAddr, ReusePort, SendBuf, SendBufForce, SocketOption,
+            AcceptConn, AttachFilter, KeepAlive, Linger, PassCred, PeerCred, PeerGroups, Priority,
+            RecvBuf, RecvBufForce, ReuseAddr, ReusePort, SendBuf, SendBufForce, SocketOption,
         },
         unix::{CUserCred, UNIX_STREAM_DEFAULT_BUF_SIZE},
     },
     prelude::*,
-    process::{credentials::capabilities::CapSet, posix_thread::AsPosixThread},
+    process::{credentials::capabilities::CapSet, posix_thread::AsPosixThread, Gid},
 };
 
 #[derive(Debug, Clone, CopyGetters, Setters)]
@@ -142,6 +142,10 @@ impl SocketOptionSet {
                 check_current_privileged()?;
                 let recv_buf = self.recv_buf();
                 socket_recvbuf_force.set(recv_buf);
+            },
+            socket_peer_groups: PeerGroups => {
+                let groups = socket.peer_groups()?;
+                socket_peer_groups.set(groups);
             },
             _ => return_errno_with_message!(Errno::ENOPROTOOPT, "the socket option to get is unknown")
         });
@@ -310,6 +314,10 @@ pub(in crate::net) trait GetSocketLevelOption {
     /// Returns the peer credentials.
     fn peer_cred(&self) -> Result<CUserCred> {
         return_errno_with_message!(Errno::ENOPROTOOPT, "SO_PEERCRED is not supported")
+    }
+    /// Returns the peer groups.
+    fn peer_groups(&self) -> Result<Arc<[Gid]>> {
+        return_errno_with_message!(Errno::ENOPROTOOPT, "SO_PEERGROUPS is not supported")
     }
 }
 
