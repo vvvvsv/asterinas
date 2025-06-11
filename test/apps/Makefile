@@ -40,6 +40,7 @@ TEST_APPS := \
 	pthread \
 	pty \
 	sched \
+	seccomp \
 	shm \
 	signal_c \
 	vsock \
