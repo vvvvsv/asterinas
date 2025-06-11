@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::{impl_socket_options, net::socket::util::options::FilterProgram, prelude::*};
+use crate::{
+    impl_socket_options,
+    net::socket::{unix::CUserCred, util::options::FilterProgram},
+    prelude::*,
+};
 mod macros;
 
 use super::LingerOption;
@@ -22,6 +26,7 @@ impl_socket_options!(
     pub struct Linger(LingerOption);
     pub struct KeepAlive(bool);
     pub struct PassCred(bool);
+    pub struct PeerCred(CUserCred);
     pub struct AttachFilter(FilterProgram);
     pub struct AcceptConn(bool);
     pub struct SendBufForce(u32);
