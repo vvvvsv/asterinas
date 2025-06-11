@@ -7,11 +7,11 @@ use aster_bigtcp::socket::{
 };
 
 use crate::{
-    match_sock_option_mut, match_sock_option_ref,
+    current_userspace, match_sock_option_mut, match_sock_option_ref,
     net::socket::{
         options::{
-            KeepAlive, Linger, PassCred, RecvBuf, RecvBufForce, ReuseAddr, ReusePort, SendBuf,
-            SendBufForce, SocketOption,
+            AttachFilter, KeepAlive, Linger, PassCred, RecvBuf, RecvBufForce, ReuseAddr, ReusePort,
+            SendBuf, SendBufForce, SocketOption,
         },
         unix::UNIX_STREAM_DEFAULT_BUF_SIZE,
     },
@@ -30,45 +30,51 @@ pub struct SocketOptionSet {
     linger: LingerOption,
     keep_alive: bool,
     pass_cred: bool,
+    #[getset(skip)]
+    #[getset(set)]
+    attach_filter: Option<FilterProgram>,
+}
+
+impl Default for SocketOptionSet {
+    fn default() -> Self {
+        Self {
+            reuse_addr: false,
+            reuse_port: false,
+            send_buf: MIN_SENDBUF,
+            recv_buf: MIN_RECVBUF,
+            linger: LingerOption::default(),
+            keep_alive: false,
+            pass_cred: false,
+            attach_filter: None,
+        }
+    }
 }
 
 impl SocketOptionSet {
     /// Return the default socket level options for tcp socket.
     pub fn new_tcp() -> Self {
         Self {
-            reuse_addr: false,
-            reuse_port: false,
             send_buf: TCP_SEND_BUF_LEN as u32,
             recv_buf: TCP_RECV_BUF_LEN as u32,
-            linger: LingerOption::default(),
-            keep_alive: false,
-            pass_cred: false,
+            ..Default::default()
         }
     }
 
     /// Return the default socket level options for udp socket.
     pub fn new_udp() -> Self {
         Self {
-            reuse_addr: false,
-            reuse_port: false,
             send_buf: UDP_SEND_PAYLOAD_LEN as u32,
             recv_buf: UDP_RECV_PAYLOAD_LEN as u32,
-            linger: LingerOption::default(),
-            keep_alive: false,
-            pass_cred: false,
+            ..Default::default()
         }
     }
 
     /// Returns the default socket level options for unix stream socket.
     pub(in crate::net) fn new_unix_stream() -> Self {
         Self {
-            reuse_addr: false,
-            reuse_port: false,
             send_buf: UNIX_STREAM_DEFAULT_BUF_SIZE as u32,
             recv_buf: UNIX_STREAM_DEFAULT_BUF_SIZE as u32,
-            linger: LingerOption::default(),
-            keep_alive: false,
-            pass_cred: false,
+            ..Default::default()
         }
     }
 
@@ -170,6 +176,10 @@ impl SocketOptionSet {
                 let pass_cred = socket_pass_cred.get().unwrap();
                 self.set_pass_cred(*pass_cred);
             },
+            socket_attach_filter: AttachFilter => {
+                let attach_filter = socket_attach_filter.get().unwrap();
+                self.set_attach_filter(Some(attach_filter.clone()));
+            },
             socket_sendbuf_force: SendBufForce => {
                 check_current_privileged()?;
                 let send_buf = socket_sendbuf_force.get().unwrap();
@@ -229,6 +239,35 @@ impl LingerOption {
 
     pub fn timeout(&self) -> Duration {
         self.timeout
+    }
+}
+
+/// Reference: <https://elixir.bootlin.com/linux/v6.0.9/source/include/uapi/linux/filter.h#L24>.
+// FIXME: We should define suitable Rust type instead of using the C type inside `FilterProgram`.
+#[derive(Clone, Copy, Debug, Pod)]
+#[repr(C)]
+struct CSockFilter {
+    code: u16,
+    jt: u8,
+    jf: u8,
+    k: u32,
+}
+
+#[expect(dead_code)]
+#[derive(Debug, Clone)]
+pub struct FilterProgram(Arc<[CSockFilter]>);
+
+impl FilterProgram {
+    pub fn read_from_user(addr: Vaddr, count: usize) -> Result<Self> {
+        let mut filters = Vec::with_capacity(count);
+
+        for i in 0..count {
+            let addr = addr + i * core::mem::size_of::<CSockFilter>();
+            let sock_filter = current_userspace!().read_val::<CSockFilter>(addr)?;
+            filters.push(sock_filter);
+        }
+
+        Ok(Self(filters.into()))
     }
 }
 

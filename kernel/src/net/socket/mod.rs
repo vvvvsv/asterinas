@@ -2,8 +2,11 @@
 
 use self::options::SocketOption;
 pub use self::util::{
-    options::LingerOption, send_recv_flags::SendRecvFlags, shutdown_cmd::SockShutdownCmd,
-    socket_addr::SocketAddr, MessageHeader,
+    options::{FilterProgram, LingerOption},
+    send_recv_flags::SendRecvFlags,
+    shutdown_cmd::SockShutdownCmd,
+    socket_addr::SocketAddr,
+    MessageHeader,
 };
 use crate::{
     fs::{
