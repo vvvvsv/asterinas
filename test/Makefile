@@ -249,9 +249,9 @@ $(INITRAMFS)/sbin:
 $(INITRAMFS)/usr/bin: | $(INITRAMFS)/bin
 	@mkdir -p $@
 	@cp /usr/bin/busybox $@
-	@# cp /usr/bin/Xvfb $@
-	@# cp /usr/bin/Xorg $@
-	@cp /usr/bin/gtf $@
+	@cp /usr-xorg/bin/Xvfb $@
+	@cp /usr-xorg/bin/Xorg $@
+	@cp /usr-xorg/bin/gtf $@
 	@cp /usr/bin/setxkbmap $@
 	@cp /usr/bin/xkbbell $@
 	@cp /usr/bin/xkbcomp $@
@@ -259,9 +259,9 @@ $(INITRAMFS)/usr/bin: | $(INITRAMFS)/bin
 	@cp /usr/bin/xkbprint $@
 	@cp /usr/bin/xkbvleds $@
 	@cp /usr/bin/xkbwatch $@
-	@# cp /usr/bin/xeyes $@
-	@# cp /usr/bin/xlogo $@
-	@# cp /usr/bin/xmessage $@
+	@cp /usr/bin/xeyes $@
+	@cp /usr/bin/xlogo $@
+	@cp /usr/bin/xmessage $@
 	@echo "#!/bin/sh" > $@/run_xorg.sh
 	@echo "./usr/bin/Xorg :0 -modulepath /usr/lib/xorg/modules -config /etc/X11/xorg.conf.d/10-fbdev.conf -logverbose 6 -logfile ~/xorg_debug.log -novtswitch -keeptty -keyboard "keyboard" -pointer "mouse0" &" >> $@/run_xorg.sh
 	@chmod +x $@/run_xorg.sh
@@ -314,6 +314,7 @@ $(INITRAMFS)/etc/dbus-1:
 $(INITRAMFS)/usr/lib:
 	@mkdir -p $@
 	@cp -r /usr/lib/xorg $@
+	@cp -r /usr-xorg/lib/x86_64-linux-gnu/xorg/modules/ $@/xorg/modules/
 
 $(INITRAMFS)/usr/lib/x86_64-linux-gnu:
 	@mkdir -p $@
