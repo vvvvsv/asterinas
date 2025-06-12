@@ -130,6 +130,34 @@ macro_rules! impl_raw_sock_option_get_only {
     };
 }
 
+/// Impl `RawSocketOption` for a struct which is for only `setsockopt` and implements `SocketOption`.
+#[macro_export]
+macro_rules! impl_raw_sock_option_set_only {
+    ($option:ty) => {
+        impl RawSocketOption for $option {
+            fn read_from_user(&mut self, addr: Vaddr, max_len: u32) -> Result<()> {
+                use $crate::util::net::options::utils::ReadFromUser;
+
+                let input = ReadFromUser::read_from_user(addr, max_len)?;
+                self.set(input);
+                Ok(())
+            }
+
+            fn write_to_user(&self, _addr: Vaddr, _max_len: u32) -> Result<usize> {
+                return_errno_with_message!(Errno::ENOPROTOOPT, "the option is setter-only");
+            }
+
+            fn as_sock_option_mut(&mut self) -> &mut dyn SocketOption {
+                self
+            }
+
+            fn as_sock_option(&self) -> &dyn SocketOption {
+                self
+            }
+        }
+    };
+}
+
 pub fn new_raw_socket_option(
     level: CSocketOptionLevel,
     name: i32,
