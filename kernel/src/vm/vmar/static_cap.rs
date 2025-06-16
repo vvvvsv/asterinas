@@ -7,7 +7,9 @@ use aster_rights_proc::require;
 
 use super::{VmPerms, Vmar, VmarMapOptions, VmarRightsOp, Vmar_};
 use crate::{
-    prelude::*, thread::exception::PageFaultInfo, vm::page_fault_handler::PageFaultHandler,
+    prelude::*,
+    thread::exception::PageFaultInfo,
+    vm::{page_fault_handler::PageFaultHandler, vmar::MremapFlags},
 };
 
 impl<R: TRights> Vmar<TRightSet<R>> {
@@ -107,6 +109,20 @@ impl<R: TRights> Vmar<TRightSet<R>> {
     /// Get the shared memory ID for the given address.
     pub fn get_shm_id(&self, addr: usize) -> Result<u64> {
         self.0.get_shm_id(addr)
+    }
+
+    /// Remaps a mapping from `old_range` to a new size.
+    ///
+    /// Returns the address of the new mapping.
+    #[require(R > Write)]
+    pub fn remap(
+        &self,
+        old_range: Range<usize>,
+        new_size: usize,
+        flags: MremapFlags,
+        new_addr: Vaddr,
+    ) -> Result<Vaddr> {
+        self.0.remap(old_range, new_size, flags, new_addr)
     }
 
     /// Duplicates the capability.
