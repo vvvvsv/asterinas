@@ -40,6 +40,7 @@ mod error;
 pub mod io;
 pub mod logger;
 pub mod mm;
+pub mod numa;
 pub mod panic;
 pub mod prelude;
 pub mod smp;
@@ -95,6 +96,8 @@ unsafe fn init() {
     // 2. The number of CPUs are available because ACPI has been initialized.
     // 3. No CPU-local objects have been accessed yet.
     unsafe { cpu::init_on_bsp() };
+
+    numa::init();
 
     // SAFETY: We are on the BSP and APs are not yet started.
     let meta_pages = unsafe { mm::frame::meta::init() };
