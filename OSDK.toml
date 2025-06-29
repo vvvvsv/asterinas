@@ -1,4 +1,4 @@
-# The OSDK manifest at the Asterinas root virtual workspace 
+# The OSDK manifest at the Asterinas root virtual workspace
 # provides default OSDK settings for all packages.
 
 # The common options for build, run and test
@@ -45,6 +45,9 @@ build.features = ["cvm_guest"]
 boot.method = "grub-qcow2"
 grub.boot_protocol = "linux"
 qemu.args = "$(./tools/qemu_args.sh tdx)"
+
+[scheme."numa"]
+qemu.args = "$(./tools/qemu_args.sh numa)"
 
 [scheme."riscv"]
 boot.method = "qemu-direct"
