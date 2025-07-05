@@ -217,7 +217,8 @@ $(INITRAMFS)/lib/x86_64-linux-gnu: | $(VDSO_LIB)
 	@#required for dbus
 	@cp -L /lib/x86_64-linux-gnu/libaudit.so.1 $@
 	@cp -L /lib/x86_64-linux-gnu/libcap-ng.so.0 $@
-
+	@cp -L /lib/x86_64-linux-gnu/libgtk-x11-2.0.so.0 $@
+	@cp -L /lib/x86_64-linux-gnu/libgdk-x11-2.0.so.0 $@
 
 $(VDSO_LIB): | $(VDSO_DIR) $(BINARY_CACHE_DIR)/vdso64.so
 	@# TODO: use a custom compiled vdso.so file in the future.
@@ -303,6 +304,9 @@ $(INITRAMFS)/usr/bin: | $(INITRAMFS)/bin
 	@cp /user-de/xfce/xfdesktop $@
 	@cp /user-de/xfce/xfconfd $@
 	@cp /usr/bin/strace $@
+	@cp /root/tz_utils/aster_gui/gtk_games/gamebox/gamebox $@
+	@cp /root/tz_utils/aster_gui/gtk_games/gtktetris/src/gtktetris $@
+	@cp /root/tz_utils/aster_gui/gtk_games/gtkboard/build/src/gtkboard $@
 
 $(INITRAMFS)/usr/local:
 	@mkdir -p $@
