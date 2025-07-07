@@ -14,7 +14,7 @@ use crate::{
         file_handle::FileLike,
         notify::{FsnotifyEvent, FsnotifyFlags, FsnotifyGroup, FsnotifyMark, FsnotifyMarkFlags},
         path::Dentry,
-        utils::{Inode, InodeMode, IoctlCmd, Metadata},
+        utils::{Inode, InodeMode, IoctlCmd, Metadata, StatusFlags},
     },
     prelude::*,
     process::signal::{PollHandle, Pollable},
@@ -27,7 +27,7 @@ type InodeAndMark = (Arc<dyn Inode>, Arc<dyn FsnotifyMark>);
 pub struct InotifyFile {
     wd_allocator: AtomicU32,
     wd_map: RwLock<HashMap<u32, InodeAndMark>>,
-    flags: InotifyFlags,
+    flags: RwLock<InotifyFlags>,
     notifications: RwLock<Vec<Arc<dyn FsnotifyEvent>>>,
     this: Weak<InotifyFile>,
 }
@@ -46,7 +46,7 @@ impl InotifyFile {
         Arc::new_cyclic(|weak_self| Self {
             wd_allocator: AtomicU32::new(0),
             wd_map: RwLock::new(HashMap::new()),
-            flags,
+            flags: RwLock::new(flags),
             notifications: RwLock::new(Vec::new()),
             this: weak_self.clone(),
         })
@@ -198,7 +198,7 @@ impl Pollable for InotifyFile {
 
 impl FileLike for InotifyFile {
     fn read(&self, writer: &mut VmWriter) -> Result<usize> {
-        if self.flags.contains(InotifyFlags::IN_NONBLOCK) && self.get_all_event_size() == 0 {
+        if self.flags.read().contains(InotifyFlags::IN_NONBLOCK) && self.get_all_event_size() == 0 {
             return_errno_with_message!(Errno::EAGAIN, "non-blocking read");
         }
 
@@ -228,6 +228,26 @@ impl FileLike for InotifyFile {
             InodeMode::from_bits_truncate(0o600),
             aster_block::BLOCK_SIZE,
         )
+    }
+
+    fn set_status_flags(&self, _new_flags: StatusFlags) -> Result<()> {
+        let mut flags = self.flags.write();
+
+        // Only allow setting the IN_NONBLOCK flag
+        let valid_flags = InotifyFlags::IN_NONBLOCK.bits();
+        let new_flags = _new_flags.bits() as u32;
+
+        if new_flags & !valid_flags != 0 {
+            return_errno_with_message!(Errno::EINVAL, "invalid status flags");
+        }
+
+        if new_flags & InotifyFlags::IN_NONBLOCK.bits() != 0 {
+            flags.insert(InotifyFlags::IN_NONBLOCK);
+        } else {
+            flags.remove(InotifyFlags::IN_NONBLOCK);
+        }
+
+        Ok(())
     }
 }
 
