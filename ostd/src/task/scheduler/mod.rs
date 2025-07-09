@@ -77,6 +77,8 @@ pub trait LocalRunQueue<T = Task> {
     /// candidate for next current runnable task, this method returns `None`.
     fn pick_next_current(&mut self) -> Option<&Arc<T>>;
 
+    fn pick_next_maybe_current(&mut self) -> Option<&Arc<T>>;
+
     /// Removes the current runnable task from runqueue.
     ///
     /// This method returns the current runnable task. If there is no current runnable
@@ -223,7 +225,7 @@ pub(super) fn exit_current() -> ! {
 pub(super) fn yield_now() {
     reschedule(|local_rq| {
         local_rq.update_current(UpdateFlags::Yield);
-        if let Some(next_task) = local_rq.pick_next_current() {
+        if let Some(next_task) = local_rq.pick_next_maybe_current() {
             ReschedAction::SwitchTo(next_task.clone())
         } else {
             ReschedAction::DoNothing

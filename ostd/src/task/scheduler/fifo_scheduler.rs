@@ -103,11 +103,22 @@ impl<T: CommonSchedInfo> LocalRunQueue<T> for FifoRunQueue<T> {
     }
 
     fn pick_next_current(&mut self) -> Option<&Arc<T>> {
-        let next_task = self.queue.pop_front()?;
-        if let Some(prev_task) = self.current.replace(next_task) {
-            self.queue.push_back(prev_task);
-        }
+        return self.pick_next_maybe_current();
+    }
 
+    fn pick_next_maybe_current(&mut self) -> Option<&Arc<T>> {
+        let next_task = if let Some(prev_task) = self.current.take() {
+            self.queue.push_back(prev_task.clone());
+            let next_task = self.queue.pop_front().unwrap();
+            if Arc::ptr_eq(&prev_task, &next_task) {
+                self.current = Some(prev_task);
+                return None;
+            }
+            next_task
+        } else {
+            self.queue.pop_front()?
+        };
+        self.current = Some(next_task);
         self.current.as_ref()
     }
 
