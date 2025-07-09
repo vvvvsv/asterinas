@@ -280,6 +280,10 @@ $(INITRAMFS)/usr/bin: | $(INITRAMFS)/bin
 	@cp /usr/bin/xeyes $@
 	@cp /usr/bin/xlogo $@
 	@cp /usr/bin/xmessage $@
+	@echo "#!/bin/sh" > $@/run_gtkboard.sh
+	@echo "/usr/bin/Xorg :0 -modulepath /usr/lib/xorg/modules -config /etc/X11/xorg.conf.d/10-fbdev.conf -logverbose 6 -logfile ~/xorg_debug.log -novtswitch -keeptty -keyboard "keyboard" -pointer "mouse0" &" >> $@/run_gtkboard.sh
+	@echo "DISPLAY=:0 /usr/bin/gtkboard" >> $@/run_gtkboard.sh
+	@chmod +x $@/run_gtkboard.sh
 	@echo "#!/bin/sh" > $@/run_xorg.sh
 	@echo "/usr/bin/Xorg :0 -modulepath /usr/lib/xorg/modules -config /etc/X11/xorg.conf.d/10-fbdev.conf -logverbose 6 -logfile ~/xorg_debug.log -novtswitch -keeptty -keyboard "keyboard" -pointer "mouse0" &" >> $@/run_xorg.sh
 	@chmod +x $@/run_xorg.sh
