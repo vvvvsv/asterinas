@@ -25,7 +25,7 @@ pub enum SchedPolicy {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, TryFromInt)]
 #[repr(u8)]
-pub(super) enum SchedPolicyKind {
+pub enum SchedPolicyKind {
     Stop = 0,
     RealTime = 1,
     Fair = 2,

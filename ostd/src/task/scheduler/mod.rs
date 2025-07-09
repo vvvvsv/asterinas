@@ -33,7 +33,7 @@ pub fn inject_scheduler(scheduler: &'static dyn Scheduler<Task>) {
     });
 }
 
-static SCHEDULER: Once<&'static dyn Scheduler<Task>> = Once::new();
+pub static SCHEDULER: Once<&'static dyn Scheduler<Task>> = Once::new();
 
 /// A per-CPU task scheduler.
 pub trait Scheduler<T = Task>: Sync + Send {
@@ -50,6 +50,8 @@ pub trait Scheduler<T = Task>: Sync + Send {
 
     /// Gets a mutable access to the local runqueue of the current CPU core.
     fn local_mut_rq_with(&self, f: &mut dyn FnMut(&mut dyn LocalRunQueue<T>));
+
+    fn print_fair_rq(&self);
 }
 
 /// The _local_ view of a per-CPU runqueue.
@@ -75,7 +77,9 @@ pub trait LocalRunQueue<T = Task> {
     ///
     /// This method returns the chosen next current runnable task. If there is no
     /// candidate for next current runnable task, this method returns `None`.
-    fn pick_next_current(&mut self) -> Option<&Arc<T>>;
+    fn pick_next_current(&mut self, from: &str) -> Option<&Arc<T>>;
+
+    fn pick_next_current_except_idle(&mut self) -> Option<&Arc<T>>;
 
     /// Removes the current runnable task from runqueue.
     ///
@@ -144,7 +148,7 @@ where
             current = local_rq.dequeue_current();
         }
 
-        if let Some(next_task) = local_rq.pick_next_current() {
+        if let Some(next_task) = local_rq.pick_next_current("park_current") {
             if Arc::ptr_eq(current.as_ref().unwrap(), next_task) {
                 return ReschedAction::DoNothing;
             }
@@ -208,7 +212,7 @@ fn set_need_preempt(cpu_id: CpuId) {
 pub(super) fn exit_current() -> ! {
     reschedule(|local_rq: &mut dyn LocalRunQueue| {
         let _ = local_rq.dequeue_current();
-        if let Some(next_task) = local_rq.pick_next_current() {
+        if let Some(next_task) = local_rq.pick_next_current("exit_current") {
             ReschedAction::SwitchTo(next_task.clone())
         } else {
             ReschedAction::Retry
@@ -223,7 +227,20 @@ pub(super) fn exit_current() -> ! {
 pub(super) fn yield_now() {
     reschedule(|local_rq| {
         local_rq.update_current(UpdateFlags::Yield);
-        if let Some(next_task) = local_rq.pick_next_current() {
+        if let Some(next_task) = local_rq.pick_next_current("yield_now") {
+            ReschedAction::SwitchTo(next_task.clone())
+        } else {
+            ReschedAction::DoNothing
+        }
+    })
+}
+
+/// Yields execution.
+#[track_caller]
+pub(super) fn yield_now_except_idle() {
+    reschedule(|local_rq| {
+        local_rq.update_current(UpdateFlags::Yield);
+        if let Some(next_task) = local_rq.pick_next_current_except_idle() {
             ReschedAction::SwitchTo(next_task.clone())
         } else {
             ReschedAction::DoNothing
@@ -240,10 +257,20 @@ fn reschedule<F>(mut f: F)
 where
     F: FnMut(&mut dyn LocalRunQueue) -> ReschedAction,
 {
+    // if CpuId::current_racy().as_usize() == 3 {
+    //     log::warn!(
+    //         "CPU{}: yielding before clear_need_preempt",
+    //         CpuId::current_racy().as_usize()
+    //     );
+    // }
+
     // Even if the decision below is `DoNothing`, we should clear this flag. Meanwhile, to avoid
     // race conditions, we should do this before making the decision.
     cpu_local::clear_need_preempt();
 
+    // if CpuId::current_racy().as_usize() == 3 {
+    //     log::warn!("CPU{}: yielding", CpuId::current_racy().as_usize());
+    // }
     let next_task = loop {
         let mut action = ReschedAction::DoNothing;
         SCHEDULER.get().unwrap().local_mut_rq_with(&mut |rq| {
@@ -262,7 +289,12 @@ where
             }
         };
     };
-
+    // if CpuId::current_racy().as_usize() == 3 {
+    //     log::warn!(
+    //         "CPU{}: yielding to another",
+    //         CpuId::current_racy().as_usize()
+    //     );
+    // }
     // `switch_to_task` will spin if it finds that the next task is still running on some CPU core,
     // which guarantees soundness regardless of the scheduler implementation.
     //

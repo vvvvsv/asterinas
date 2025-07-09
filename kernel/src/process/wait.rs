@@ -65,7 +65,7 @@ pub fn do_wait(
 
     let zombie_child = with_sigmask_changed(
         ctx,
-        |sigmask| sigmask + SIGCHLD,
+        |sigmask| sigmask + SIGCHLD, // 不接受 SIGCHLD
         || {
             ctx.process.children_wait_queue().pause_until(|| {
                 // Acquire the children lock at first to prevent race conditions.
@@ -146,6 +146,7 @@ impl WaitStatus {
 }
 
 fn wait_zombie(unwaited_children: &[&Arc<Process>]) -> Option<WaitStatus> {
+    warn!("wait_zombie");
     unwaited_children
         .iter()
         .find(|child| child.status().is_zombie())

@@ -43,12 +43,24 @@ fn exit_internal(term_status: TermStatus, is_exiting_group: bool) {
     let posix_thread = current_thread.as_posix_thread().unwrap();
     let thread_local = current_task.as_thread_local().unwrap();
     let posix_process = posix_thread.process();
+    warn!(
+        "exit: thread (tid: {}, pid: {}) with status {:?}, policy_kind: {:?}",
+        posix_thread.tid(),
+        posix_process.pid(),
+        term_status,
+        current_task.as_thread().unwrap().sched_attr().policy_kind()
+    );
 
     let is_last_thread = {
         let mut tasks = posix_process.tasks().lock();
         let has_exited_group = tasks.has_exited_group();
 
         if is_exiting_group && !has_exited_group {
+            warn!(
+                "tid {}, pid {} is exiting group",
+                posix_thread.tid(),
+                posix_process.pid()
+            );
             sigkill_other_threads(&current_task, &tasks);
             tasks.set_exited_group();
         }
@@ -59,6 +71,10 @@ fn exit_internal(term_status: TermStatus, is_exiting_group: bool) {
             posix_process.status().set_exit_code(term_status.as_u32());
         }
 
+        if posix_thread.tid() == posix_process.pid() {
+            warn!("11111111111111111");
+        }
+
         // We should only change the thread status when running as the thread, so no race
         // conditions can occur in between.
         if current_thread.is_exited() {
@@ -66,28 +82,60 @@ fn exit_internal(term_status: TermStatus, is_exiting_group: bool) {
         }
         current_thread.exit();
 
+        if posix_thread.tid() == posix_process.pid() {
+            warn!("22222222222222222");
+        }
         tasks.remove_exited(&current_task)
     };
+    warn!(
+        "tid {}, pid {}, is_last_thread: {}",
+        posix_thread.tid(),
+        posix_process.pid(),
+        is_last_thread,
+    );
 
+    if posix_thread.tid() == posix_process.pid() {
+        warn!("333333333333333333");
+    }
     wake_clear_ctid(thread_local);
-
+    if posix_thread.tid() == posix_process.pid() {
+        warn!("44444444444444444444");
+    }
     wake_robust_list(thread_local, posix_thread.tid());
-
+    if posix_thread.tid() == posix_process.pid() {
+        warn!("5555555555555555555");
+    }
     // According to Linux behavior, the main thread shouldn't be removed from the table until the
     // process is reaped by its parent.
     if posix_thread.tid() != posix_process.pid() {
         thread_table::remove_thread(posix_thread.tid());
     }
-
+    if posix_thread.tid() == posix_process.pid() {
+        warn!("66666666666666666666");
+    }
     // Drop fields in `PosixThread`.
     *posix_thread.file_table().lock() = None;
-
+    if posix_thread.tid() == posix_process.pid() {
+        warn!("7777777777777777777");
+    }
     // Drop fields in `ThreadLocal`.
     *thread_local.root_vmar().borrow_mut() = None;
     thread_local.borrow_file_table_mut().remove();
+    if posix_thread.tid() == posix_process.pid() {
+        warn!("88888888888888888888888");
+    }
 
     if is_last_thread {
+        warn!(
+            "tid {}, pid {} is zombie: {}",
+            posix_thread.tid(),
+            posix_process.pid(),
+            posix_process.status().is_zombie(),
+        );
         exit_process(&posix_process);
+    }
+    if posix_thread.tid() == posix_process.pid() {
+        warn!("99999999999999999999");
     }
 }
 

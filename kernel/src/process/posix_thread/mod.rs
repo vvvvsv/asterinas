@@ -241,6 +241,7 @@ impl PosixThread {
     ) {
         self.sig_queues.enqueue(signal);
         self.wake_signalled_waker();
+        warn!("sigkill tid {}", self.tid());
     }
 
     /// Returns a reference to the profiling clock of the current thread.

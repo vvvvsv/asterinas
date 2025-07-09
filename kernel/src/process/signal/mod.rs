@@ -48,6 +48,9 @@ pub fn handle_pending_signal(
     ctx: &Context,
     syscall_number: Option<usize>,
 ) {
+    // if ctx.posix_thread.tid()!=1 {
+    //     warn!("Handling pending signal tid: {}", ctx.posix_thread.tid());
+    // }
     let syscall_restart = if let Some(syscall_number) = syscall_number
         && user_ctx.syscall_ret() == -(Errno::ERESTARTSYS as i32) as usize
     {

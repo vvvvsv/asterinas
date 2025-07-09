@@ -18,13 +18,16 @@ use ostd::{
     },
     trap::irq::disable_local,
 };
-
+use core::sync::atomic::AtomicU32;
 use super::{
     nice::Nice,
     stats::{set_stats_from_scheduler, SchedulerStats},
 };
-use crate::thread::{AsThread, Thread};
-
+use crate::{
+    current_thread,
+    process::posix_thread::AsPosixThread,
+    thread::{AsThread, Thread},
+};
 mod policy;
 mod time;
 
@@ -160,7 +163,7 @@ impl SchedAttr {
         self.policy.get()
     }
 
-    fn policy_kind(&self) -> SchedPolicyKind {
+    pub fn policy_kind(&self) -> SchedPolicyKind {
         self.policy.kind()
     }
 
@@ -218,8 +221,12 @@ impl Scheduler for ClassScheduler {
 
         let mut rq = self.rqs[cpu.as_usize()].disable_irq().lock();
 
+        let tid = task.as_posix_thread().map(|t| t.tid()).unwrap_or(0);
+
         // Note: call set_if_is_none again to prevent a race condition.
         if still_in_rq && task.cpu().set_if_is_none(cpu).is_err() {
+            let fair = &rq.fair.entities;
+            log::warn!("cpu {}'s fairlist: {}, idle: {:?}", cpu.as_usize(), fair.peek().map(|val| val.0.0.as_posix_thread().map(|t| t.tid())).flatten().unwrap_or(114514), rq.idle);
             return None;
         }
 
@@ -234,6 +241,10 @@ impl Scheduler for ClassScheduler {
         thread.sched_attr().set_last_cpu(cpu);
         rq.enqueue_entity((task, thread), Some(flags));
 
+        if tid > 1 {
+            let fair = &rq.fair.entities;
+            log::warn!("cpu {}'s fairlist: {}, idle: {:?}", cpu.as_usize(), fair.peek().map(|val| val.0.0.as_posix_thread().map(|t| t.tid())).flatten().unwrap_or(114514), rq.idle);
+        }
         should_preempt.then_some(cpu)
     }
 
@@ -246,6 +257,9 @@ impl Scheduler for ClassScheduler {
     fn local_rq_with(&self, f: &mut dyn FnMut(&dyn LocalRunQueue)) {
         let guard = disable_local();
         f(&*self.rqs[guard.current_cpu().as_usize()].lock())
+    }
+
+    fn print_fair_rq(&self) {
     }
 }
 
@@ -318,6 +332,16 @@ impl PerCpuClassRqSet {
             })
     }
 
+    fn pick_next_entity_except_idle(&mut self) -> Option<SchedEntity> {
+        (self.stop.pick_next())
+            .or_else(|| self.real_time.pick_next())
+            .or_else(|| self.fair.pick_next())
+            .and_then(|task| {
+                let thread = task.as_thread()?.clone();
+                Some((task, thread))
+            })
+    }
+
     fn enqueue_entity(&mut self, (task, thread): SchedEntity, flags: Option<EnqueueFlags>) {
         match thread.sched_attr().policy_kind() {
             SchedPolicyKind::Stop => self.stop.enqueue(task, flags),
@@ -334,20 +358,90 @@ impl PerCpuClassRqSet {
     }
 }
 
+static PICK_NEXT_COUNT: AtomicU32 = AtomicU32::new(0);
+
 impl LocalRunQueue for PerCpuClassRqSet {
     fn current(&self) -> Option<&Arc<Task>> {
         self.current.as_ref().map(|((task, _), _)| task)
     }
 
-    fn pick_next_current(&mut self) -> Option<&Arc<Task>> {
-        self.pick_next_entity().and_then(|next| {
+    fn pick_next_current(&mut self, from: &str) -> Option<&Arc<Task>> {
+
+        let next = self.pick_next_entity().and_then(|next| {
             // We guarantee that a task can appear at once in a `PerCpuClassRqSet`. So, the `next` cannot be the same
             // as the current task here.
             if let Some((old, _)) = self.current.replace((next, CurrentRuntime::new())) {
                 self.enqueue_entity(old, None);
             }
             self.current.as_ref().map(|((task, _), _)| task)
-        })
+        });
+
+        let tid = next.map(|t| t.as_posix_thread().map(|t| t.tid()));
+        let my_tid = Thread::current().map(|t| t.as_posix_thread().map(|t| t.tid()));
+
+        // if let Some(next) = next {
+        //     let current = ostd::task::Task::current();
+        //     if let Some(now) = current {
+        //         if Arc::ptr_eq(next, &now.cloned()) {
+        //             return None;
+        //         }
+        //     }
+        // }
+        if tid.flatten().is_some_and(|t|t>1) || my_tid.flatten().is_some_and(|t|t>1) {
+            // if PICK_NEXT_COUNT.fetch_add(1, Ordering::Relaxed) > 3000 {
+            //     panic!();
+            // }
+
+            log::warn!(
+                "CPU{} reschedule 1 from task {:?} to task {:?} with kind {:?}. from fn {}",
+                CpuId::current_racy().as_usize(),
+                my_tid,
+                tid,
+                next.map(|t| t.as_thread().map(|t| t.sched_attr().policy_kind())),
+                from,
+                // self.fair.entities.peek().map(|val| val.0.0.as_posix_thread().map(|t| t.tid())).flatten().unwrap_or(114514),
+                // self.idle
+            );
+        }
+        next
+    }
+
+    fn pick_next_current_except_idle(&mut self) -> Option<&Arc<Task>> {
+        let next = self.pick_next_entity_except_idle().and_then(|next| {
+            // We guarantee that a task can appear at once in a `PerCpuClassRqSet`. So, the `next` cannot be the same
+            // as the current task here.
+            if let Some((old, _)) = self.current.replace((next, CurrentRuntime::new())) {
+                self.enqueue_entity(old, None);
+            }
+            self.current.as_ref().map(|((task, _), _)| task)
+        });
+
+        let t = next.map(|t| t.as_thread().map(|t| t.sched_attr().policy_kind()));
+        if t == Some(Some(SchedPolicyKind::Idle)) {
+            panic!();
+        }
+
+        let tid = next.map(|t| t.as_posix_thread().map(|t| t.tid()));
+        let my_tid = Thread::current().map(|t| t.as_posix_thread().map(|t| t.tid()));
+
+        // if let Some(next) = next {
+        //     let current = ostd::task::Task::current();
+        //     if let Some(now) = current {
+        //         if Arc::ptr_eq(next, &now.cloned()) {
+        //             return None;
+        //         }
+        //     }
+        // }
+        if tid.flatten().is_some_and(|t|t>1) || my_tid.flatten().is_some_and(|t|t>1) {
+            log::warn!(
+                "CPU{} reschedule 2 from task {:?} to task {:?} with kind {:?}",
+                CpuId::current_racy().as_usize(),
+                my_tid,
+                tid,
+                next.map(|t| t.as_thread().map(|t| t.sched_attr().policy_kind()))
+            );
+        }
+        next
     }
 
     fn update_current(&mut self, flags: UpdateFlags) -> bool {

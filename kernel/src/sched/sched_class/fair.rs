@@ -189,7 +189,7 @@ impl FairAttr {
 ///
 /// This structure is used to provide the capability for keying in the
 /// run queue implemented by `BTreeSet` in the `FairClassRq`.
-struct FairQueueItem(Arc<Task>, u64);
+pub struct FairQueueItem(pub Arc<Task>, u64);
 
 impl core::fmt::Debug for FairQueueItem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -230,11 +230,11 @@ impl Ord for FairQueueItem {
 /// The structure contains a `BTreeSet` to store the threads in the run queue to
 /// ensure the efficiency for finding next-to-run threads.
 #[derive(Debug)]
-pub(super) struct FairClassRq {
+pub struct FairClassRq {
     #[expect(unused)]
     cpu: CpuId,
     /// The ready-to-run threads.
-    entities: BinaryHeap<Reverse<FairQueueItem>>,
+    pub entities: BinaryHeap<Reverse<FairQueueItem>>,
     /// The minimum of vruntime in the run queue. Serves as the initial
     /// value of newly-enqueued threads.
     min_vruntime: u64,

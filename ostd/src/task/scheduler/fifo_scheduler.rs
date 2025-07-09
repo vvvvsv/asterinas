@@ -77,6 +77,8 @@ impl<T: CommonSchedInfo + Send + Sync> Scheduler<T> for FifoScheduler<T> {
             .lock();
         f(local_rq);
     }
+
+    fn print_fair_rq(&self) {}
 }
 
 struct FifoRunQueue<T: CommonSchedInfo> {
@@ -102,13 +104,17 @@ impl<T: CommonSchedInfo> LocalRunQueue<T> for FifoRunQueue<T> {
         !matches!(flags, UpdateFlags::Tick)
     }
 
-    fn pick_next_current(&mut self) -> Option<&Arc<T>> {
+    fn pick_next_current(&mut self, _: &str) -> Option<&Arc<T>> {
         let next_task = self.queue.pop_front()?;
         if let Some(prev_task) = self.current.replace(next_task) {
             self.queue.push_back(prev_task);
         }
 
         self.current.as_ref()
+    }
+
+    fn pick_next_current_except_idle(&mut self) -> Option<&Arc<T>> {
+        self.pick_next_current("")
     }
 
     fn dequeue_current(&mut self) -> Option<Arc<T>> {

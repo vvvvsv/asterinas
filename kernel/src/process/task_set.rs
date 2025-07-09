@@ -59,6 +59,11 @@ impl TaskSet {
             self.tasks.swap_remove(position);
         }
 
+        warn!(
+            "has_exited_main: {}, tasks.len(): {}",
+            self.has_exited_main,
+            self.tasks.len()
+        );
         self.has_exited_main && self.tasks.len() == 1
     }
 

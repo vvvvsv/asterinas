@@ -11,5 +11,6 @@ pub fn sys_exit_group(exit_code: u64, _ctx: &Context) -> Result<SyscallReturn> {
     // Exit all thread in current process
     let term_status = TermStatus::Exited(exit_code as _);
     do_exit_group(term_status);
+    warn!("do_exit_group done!");
     Ok(SyscallReturn::Return(0))
 }

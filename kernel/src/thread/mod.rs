@@ -118,6 +118,11 @@ impl Thread {
         Task::yield_now()
     }
 
+    #[track_caller]
+    pub fn yield_now_except_idle() {
+        Task::yield_now_except_idle()
+    }
+
     /// Joins the execution of the thread.
     ///
     /// This method will return after the thread exits.

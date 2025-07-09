@@ -104,6 +104,11 @@ impl Task {
         scheduler::yield_now()
     }
 
+    #[track_caller]
+    pub fn yield_now_except_idle() {
+        scheduler::yield_now_except_idle()
+    }
+
     /// Kicks the task scheduler to run the task.
     ///
     /// BUG: This method highly depends on the current scheduling policy.
