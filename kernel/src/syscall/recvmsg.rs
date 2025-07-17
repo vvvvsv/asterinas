@@ -14,7 +14,7 @@ pub fn sys_recvmsg(
     flags: i32,
     ctx: &Context,
 ) -> Result<SyscallReturn> {
-    let c_user_msghdr: CUserMsgHdr = ctx.user_space().read_val(user_msghdr_ptr)?;
+    let mut c_user_msghdr: CUserMsgHdr = ctx.user_space().read_val(user_msghdr_ptr)?;
     let flags = SendRecvFlags::from_bits_truncate(flags);
 
     debug!(
@@ -44,6 +44,13 @@ pub fn sys_recvmsg(
 
     if c_user_msghdr.msg_control != 0 {
         warn!("receiving control message is not supported");
+    }
+
+    // Since currently we do not support sending control message, we should
+    // set the user_msghdr.msg_controllen to 0.
+    if c_user_msghdr.msg_control != 0 {
+        c_user_msghdr.msg_controllen = 0;
+        ctx.user_space().write_val(user_msghdr_ptr, &c_user_msghdr)?;
     }
 
     Ok(SyscallReturn::Return(total_bytes as _))
