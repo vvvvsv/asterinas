@@ -214,6 +214,7 @@ $(INITRAMFS)/lib/x86_64-linux-gnu: | $(VDSO_LIB)
 	@cp -L /lib/x86_64-linux-gnu/libxfce4ui-2.so.0 $@
 	@cp -L /lib/x86_64-linux-gnu/libxfce4util.so.7 $@
 	@cp -L /lib/x86_64-linux-gnu/libxfconf-0.so.3 $@
+	@cp -L /root/tz_utils/aster_gui/xfce/install/lib/libxfce4panel-2.0.so.4 $@
 	@#required for dbus
 	@cp -L /lib/x86_64-linux-gnu/libaudit.so.1 $@
 	@cp -L /lib/x86_64-linux-gnu/libcap-ng.so.0 $@
@@ -304,9 +305,9 @@ $(INITRAMFS)/usr/bin: | $(INITRAMFS)/bin
 	@cp /user-de/gtk/run_gtk_demo.sh $@
 	@cp /user-de/tools/setup_dev.sh $@
 	@#required for xfce4
-	@cp /user-de/xfce/xfwm4 $@
-	@cp /user-de/xfce/xfdesktop $@
 	@cp /user-de/xfce/xfconfd $@
+	@cp /root/tz_utils/aster_gui/xfce/install/bin/* $@
+	@cp /root/tz_utils/aster_gui/xfce/install/setup_xfce.sh $@
 	@cp /usr/bin/strace $@
 	@cp /root/tz_utils/aster_gui/gtk_games/gamebox/gamebox $@
 	@cp /root/tz_utils/aster_gui/gtk_games/gtktetris/src/gtktetris $@
@@ -364,6 +365,8 @@ $(INITRAMFS)/etc/dbus-1:
 $(INITRAMFS)/etc/xdg:
 	@mkdir -p $@
 	@cp -r /etc/xdg/xfce4 $@
+	@cp -r /root/tz_utils/aster_gui/xfce/install/etc/xdg/xfce4/panel $@/xfce4
+	@cp -r /root/tz_utils/aster_gui/xfce/install/etc/xdg/Thunar $@
 
 $(INITRAMFS)/etc/fonts:
 	@mkdir -p $@
@@ -373,6 +376,9 @@ $(INITRAMFS)/usr/lib:
 	@mkdir -p $@
 	@cp -r /usr/lib/xorg $@
 	@cp -r /user-de/xorg/installed_dir/lib/x86_64-linux-gnu/xorg/modules/ $@/xorg/modules/
+	@cp -r /root/tz_utils/aster_gui/xfce/install/lib/* $@
+	@mkdir -p $@/../../root/tz_utils/aster_gui/xfce/install/lib/xfce4/panel
+	@cp -r /root/tz_utils/aster_gui/xfce/install/lib/xfce4/panel/* $@/../../root/tz_utils/aster_gui/xfce/install/lib/xfce4/panel/
 
 $(INITRAMFS)/usr/libexec:
 	@mkdir -p $@
