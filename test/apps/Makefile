@@ -40,6 +40,7 @@ TEST_APPS := \
 	shm \
 	signal_c \
 	vsock \
+	rvault_tests \
 
 # The C head and source files of all the apps, excluding the downloaded mongoose files
 C_SOURCES := \
@@ -47,7 +48,7 @@ C_SOURCES := \
 		! -name "mongoose.c" ! -name "mongoose.h")
 
 .PHONY: all
-all: $(TEST_APPS) scripts
+all: $(TEST_APPS) scripts hello rvault
 
 .PHONY: $(TEST_APPS)
 $(TEST_APPS):
@@ -69,3 +70,16 @@ $(TEST_BUILD_DIR):
 .PHONY: scripts
 scripts: | $(TEST_BUILD_DIR)
 	@make --no-print-directory BUILD_DIR=$(TEST_BUILD_DIR) -C scripts
+
+.PHONY: hello
+hello:
+	cargo build --release --manifest-path hello/Cargo.toml
+	cp hello/target/x86_64-unknown-linux-gnu/release/hello $(TEST_BUILD_DIR)
+
+.PHONY: rvault
+rvault:
+	cargo build --manifest-path RustyVault/Cargo.toml
+	mkdir -p $(TEST_BUILD_DIR)/rvault/work_dir
+	cp RustyVault/target/debug/rvault $(TEST_BUILD_DIR)/rvault/
+	cp RustyVault/rvault.hcl $(TEST_BUILD_DIR)/rvault/
+	cp /lib/x86_64-linux-gnu/libssl.so.3 $(INITRAMFS)/lib/x86_64-linux-gnu/libssl.so.3
