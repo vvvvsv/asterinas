@@ -391,6 +391,20 @@ impl DirEntry {
 }
 
 impl RamInode {
+    pub fn new_file_detached(mode: InodeMode, uid: Uid, gid: Gid) -> Arc<Self> {
+        Arc::new_cyclic(|weak_self| RamInode {
+            inner: Inner::new_file(weak_self.clone()),
+            metadata: SpinLock::new(InodeMeta::new(mode, uid, gid)),
+            ino: weak_self.as_ptr() as u64,
+            typ: InodeType::File,
+            this: weak_self.clone(),
+            fs: Weak::new(),
+            extension: Extension::new(),
+            xattr: RamXattr::new(),
+            fsnotify: FsnotifyCommon::new(),
+        })
+    }
+
     fn new_dir(
         fs: &Arc<RamFS>,
         mode: InodeMode,

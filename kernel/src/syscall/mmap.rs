@@ -13,10 +13,7 @@ use ostd::{
 
 use super::SyscallReturn;
 use crate::{
-    fs::{
-        file_handle::FileLike,
-        file_table::{get_file_fast, FileDesc},
-    },
+    fs::file_table::{get_file_fast, FileDesc},
     prelude::*,
     vm::{
         perms::VmPerms,
@@ -146,9 +143,8 @@ pub fn do_sys_mmap(
                 MmapHandle::File(fd) => {
                     let mut file_table = ctx.thread_local.borrow_file_table_mut();
                     let file = get_file_fast!(&mut file_table, fd);
-                    let inode_handle = file.as_inode_or_err()?;
 
-                    let access_mode = inode_handle.access_mode();
+                    let access_mode = file.access_mode();
                     if vm_perms.contains(VmPerms::READ) && !access_mode.is_readable() {
                         return_errno!(Errno::EACCES);
                     }
@@ -159,7 +155,7 @@ pub fn do_sys_mmap(
                         return_errno!(Errno::EACCES);
                     }
 
-                    let inode = inode_handle.dentry().inode();
+                    let inode = file.inode_or_err()?;
                     match inode.page_cache() {
                         Some(_) => {
                             options = options.inode(inode.clone());

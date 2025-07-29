@@ -4,6 +4,8 @@
 
 pub use fs::{RamFS, RamInode};
 
+use alloc::sync::Arc;
+
 mod fs;
 mod xattr;
 

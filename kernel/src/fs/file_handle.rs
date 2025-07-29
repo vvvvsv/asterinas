@@ -8,11 +8,14 @@ use ostd::io::IoMem;
 
 use super::{inode_handle::InodeHandle, path::Dentry};
 use crate::{
-    fs::utils::{AccessMode, FallocMode, InodeMode, IoctlCmd, Metadata, SeekFrom, StatusFlags},
+    fs::utils::{
+        AccessMode, FallocMode, Inode, InodeMode, IoctlCmd, Metadata, SeekFrom, StatusFlags,
+    },
     net::socket::Socket,
     prelude::*,
     process::{signal::Pollable, Gid, Uid},
     vm::perms::VmPerms,
+    vm::memfd::MemfdFile,
 };
 
 /// The basic operations defined on a file
@@ -153,5 +156,17 @@ impl dyn FileLike {
         self.downcast_ref().ok_or_else(|| {
             Error::with_message(Errno::EINVAL, "the file is not related to an inode")
         })
+    }
+
+    pub fn inode_or_err(&self) -> Result<&Arc<dyn Inode>> {
+        self.downcast_ref::<InodeHandle>()
+            .map(|inode_handle| inode_handle.dentry().inode())
+            .or_else(|| {
+                self.downcast_ref::<MemfdFile>()
+                    .map(|memfd_file| memfd_file.inode())
+            })
+            .ok_or_else(|| {
+                Error::with_message(Errno::EINVAL, "the file is not related to an inode")
+            })
     }
 }
