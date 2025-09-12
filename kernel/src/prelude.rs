@@ -50,9 +50,10 @@ macro_rules! current_thread {
 pub(crate) use aster_logger::{print, println};
 
 pub(crate) use crate::{
-    context::{Context, CurrentUserSpace, ReadCString},
+    context::{Context, CurrentUserSpace},
     current, current_thread,
     error::{Errno, Error},
+    fs::utils::ReadCString,
     process::{posix_thread::AsThreadLocal, signal::Pause},
     time::{wait::WaitTimeout, Clock},
 };

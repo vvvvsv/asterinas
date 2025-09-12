@@ -78,7 +78,7 @@ impl Attribute for AddrAttr {
             }
             (AddrAttrClass::LOCAL, 4) => Self::Local(reader.read_val_opt::<[u8; 4]>()?.unwrap()),
             (AddrAttrClass::LABEL, 1..=IFNAME_SIZE) => {
-                Self::Label(reader.read_cstring_with_max_len(payload_len)?)
+                Self::Label(reader.read_cstring_until_nul(payload_len)?)
             }
 
             (AddrAttrClass::ADDRESS | AddrAttrClass::LOCAL | AddrAttrClass::LABEL, _) => {

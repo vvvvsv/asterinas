@@ -134,7 +134,7 @@ impl Attribute for LinkAttr {
 
         let res = match (class, payload_len) {
             (LinkAttrClass::IFNAME, 1..=IFNAME_SIZE) => {
-                Self::Name(reader.read_cstring_with_max_len(payload_len)?)
+                Self::Name(reader.read_cstring_until_nul(payload_len)?)
             }
             (LinkAttrClass::MTU, 4) => Self::Mtu(reader.read_val_opt::<u32>()?.unwrap()),
             (LinkAttrClass::TXQLEN, 4) => Self::TxqLen(reader.read_val_opt::<u32>()?.unwrap()),

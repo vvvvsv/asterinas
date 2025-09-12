@@ -436,7 +436,7 @@ impl InitStackReader<'_> {
                     .ok_or_else(|| Error::with_message(Errno::EINVAL, "arg_ptr is corrupted"))?;
                 let mut arg_reader = frame.reader().to_fallible();
                 arg_reader.skip(arg_offset).limit(MAX_LEN_STRING_ARG);
-                arg_reader.read_cstring()?
+                arg_reader.read_cstring_until_nul(MAX_LEN_STRING_ARG)?
             };
             argv.push(arg);
         }
@@ -485,7 +485,7 @@ impl InitStackReader<'_> {
                     .ok_or_else(|| Error::with_message(Errno::EINVAL, "envp is corrupted"))?;
                 let mut envp_reader = frame.reader().to_fallible();
                 envp_reader.skip(envp_offset).limit(MAX_LEN_STRING_ARG);
-                envp_reader.read_cstring()?
+                envp_reader.read_cstring_until_nul(MAX_LEN_STRING_ARG)?
             };
             envp.push(env);
         }
