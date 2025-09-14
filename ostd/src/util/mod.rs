@@ -4,7 +4,7 @@
 
 mod either;
 mod macros;
-pub(crate) mod ops;
+pub mod ops;
 pub(crate) mod range_alloc;
 
 pub use either::Either;
