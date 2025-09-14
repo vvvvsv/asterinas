@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
+//! Utilities for overloadable operators.
+
 use core::ops::Range;
 
 /// Calculates the [difference] of two [`Range`]s, i.e., `a - b`.
@@ -22,6 +24,19 @@ pub fn range_difference<T: Ord + Copy>(
     };
 
     r.into_iter().filter(|v| !v.is_empty())
+}
+
+/// Determines whether two ranges are intersected.
+/// returns false if one of the ranges has a length of 0
+pub fn is_intersected<T: Ord + Copy>(range1: &Range<T>, range2: &Range<T>) -> bool {
+    range1.start.max(range2.start) < range1.end.min(range2.end)
+}
+
+/// Gets the intersection range of two ranges.
+/// The two ranges should be ensured to be intersected.
+pub fn get_intersected_range<T: Ord + Copy>(range1: &Range<T>, range2: &Range<T>) -> Range<T> {
+    debug_assert!(is_intersected(range1, range2));
+    range1.start.max(range2.start)..range1.end.min(range2.end)
 }
 
 #[cfg(ktest)]

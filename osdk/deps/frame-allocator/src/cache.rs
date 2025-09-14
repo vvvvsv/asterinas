@@ -68,7 +68,7 @@ impl<const NR_CONT_FRAMES: usize, const COUNT: usize> CacheArray<NR_CONT_FRAMES,
     /// Deallocates a segment of frames.
     ///
     /// It may deallocate directly to this cache. If the cache is full, it will
-    /// deallocate to the global pool.
+    /// deallocate to the NUMA node pools.
     fn dealloc(&mut self, guard: &DisabledLocalIrqGuard, addr: Paddr) {
         if self.push_front(addr).is_none() {
             let nr_to_dealloc = COUNT * 2 / 3 + 1;
@@ -141,7 +141,8 @@ pub(super) fn dealloc(guard: &DisabledLocalIrqGuard, addr: Paddr, size: usize) {
         super::pools::dealloc(guard, [(addr, size)].into_iter());
         return;
     }
-
+    // 注意不要current cpu 的cache，最好是frame对应的numa node的？
+    // 或者其实cache这里无所谓？
     let cache_cell = CACHE.get_with(guard);
     let mut cache = cache_cell.borrow_mut();
 
