@@ -2,9 +2,7 @@
 
 //! Virtual Memory Address Regions (VMARs).
 
-mod dyn_cap;
 mod interval_set;
-mod static_cap;
 pub mod vm_mapping;
 
 use core::{array, num::NonZeroUsize, ops::Range};
@@ -34,52 +32,103 @@ use crate::{
     process::{Process, ResourceType},
     thread::exception::PageFaultInfo,
     vm::{
+        page_fault_handler::PageFaultHandler,
         perms::VmPerms,
         vmo::{Vmo, VmoRightsOp},
     },
 };
 
-/// Virtual Memory Address Regions (VMARs) are a type of capability that manages
-/// user address spaces.
-///
-/// # Capabilities
-///
-/// As a capability, each VMAR is associated with a set of access rights,
-/// whose semantics are explained below.
-///
-/// The semantics of each access rights for VMARs are described below:
-///  * The Dup right allows duplicating a VMAR.
-///  * The Read, Write, Exec rights allow creating memory mappings with
-///    readable, writable, and executable access permissions, respectively.
-///  * The Read and Write rights allow the VMAR to be read from and written to
-///    directly.
-///
-/// VMARs are implemented with two flavors of capabilities:
-/// the dynamic one (`Vmar<Rights>`) and the static one (`Vmar<R: TRights>`).
-pub struct Vmar<R = Rights>(Arc<Vmar_>, R);
+/// Virtual Memory Address Regions (VMARs) represent and manage user address spaces.
+pub struct Vmar(Arc<Vmar_>);
 
-pub trait VmarRightsOp {
-    /// Returns the access rights.
-    fn rights(&self) -> Rights;
-
-    /// Checks whether current rights meet the input `rights`.
-    fn check_rights(&self, rights: Rights) -> Result<()> {
-        if self.rights().contains(rights) {
-            Ok(())
-        } else {
-            return_errno_with_message!(Errno::EACCES, "VMAR rights are insufficient");
-        }
-    }
-}
-
-impl<R> PartialEq for Vmar<R> {
+impl PartialEq for Vmar {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl<R> Vmar<R> {
-    /// FIXME: This function should require access control
+impl Vmar {
+    /// Creates a root VMAR.
+    pub fn new_root() -> Self {
+        let inner = Vmar_::new_root();
+        Self(inner)
+    }
+
+    /// Creates a mapping into the VMAR through a set of VMAR mapping options.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use aster_nix::prelude::*;
+    /// use aster_nix::vm::{PAGE_SIZE, Vmar};
+    ///
+    /// let vmar = Vmar::new().unwrap();
+    /// let vmo = VmoOptions::new(10 * PAGE_SIZE).alloc().unwrap();
+    /// let target_vaddr = 0x1234000;
+    /// let real_vaddr = vmar
+    ///     // Create a 4 * PAGE_SIZE bytes, read-only mapping
+    ///     .new_map(PAGE_SIZE * 4, VmPerms::READ)
+    ///     // Provide an optional offset for the mapping inside the VMAR
+    ///     .offset(target_vaddr)
+    ///     // Specify an optional binding VMO.
+    ///     .vmo(vmo)
+    ///     // Provide an optional offset to indicate the corresponding offset
+    ///     // in the VMO for the mapping
+    ///     .vmo_offset(2 * PAGE_SIZE)
+    ///     .build()
+    ///     .unwrap();
+    /// assert!(real_vaddr == target_vaddr);
+    /// ```
+    ///
+    /// For more details on the available options, see `VmarMapOptions`.
+    pub fn new_map(&self, size: usize, perms: VmPerms) -> Result<VmarMapOptions<Rights>> {
+        Ok(VmarMapOptions::new(self, size, perms))
+    }
+
+    /// Change the permissions of the memory mappings in the specified range.
+    ///
+    /// The range's start and end addresses must be page-aligned.
+    /// Also, the range must be completely mapped.
+    pub fn protect(&self, perms: VmPerms, range: Range<usize>) -> Result<()> {
+        self.0.protect(perms, range)
+    }
+
+    /// Finds all the mapped regions that intersect with the specified range.
+    pub fn query(&self, range: Range<usize>) -> VmarQueryGuard<'_> {
+        self.0.query(range)
+    }
+
+    /// Clears all mappings.
+    ///
+    /// After being cleared, this vmar will become an empty vmar
+    pub fn clear(&self) -> Result<()> {
+        self.0.clear_root_vmar()
+    }
+
+    /// Destroys all mappings that fall within the specified
+    /// range in bytes.
+    ///
+    /// The range's start and end addresses must be page-aligned.
+    ///
+    /// Mappings may fall partially within the range; only the overlapped
+    /// portions of the mappings are unmapped.
+    pub fn remove_mapping(&self, range: Range<usize>) -> Result<()> {
+        self.0.remove_mapping(range)
+    }
+
+    /// Duplicates the VMAR.
+    pub fn dup(&self) -> Result<Self> {
+        Ok(Vmar(self.0.clone()))
+    }
+
+    /// Creates a new root VMAR whose content is inherited from another
+    /// using copy-on-write (COW) technique.
+    pub fn fork_from(vmar: &Self) -> Result<Self> {
+        let vmar_ = vmar.0.new_fork_root()?;
+        Ok(Vmar(vmar_))
+    }
+
+    /// Returns the attached `VmSpace`.
     pub fn vm_space(&self) -> &Arc<VmSpace> {
         self.0.vm_space()
     }
@@ -136,6 +185,12 @@ impl<R> Vmar<R> {
     /// Returns the reference count of the VMAR.
     pub fn reference_count(&self) -> usize {
         Arc::strong_count(&self.0)
+    }
+}
+
+impl PageFaultHandler for Vmar {
+    fn handle_page_fault(&self, page_fault_info: &PageFaultInfo) -> Result<()> {
+        self.0.handle_page_fault(page_fault_info)
     }
 }
 
@@ -798,7 +853,7 @@ fn cow_copy_pt(src: &mut CursorMut<'_>, dst: &mut CursorMut<'_>, size: usize) ->
     num_copied
 }
 
-impl<R> Vmar<R> {
+impl Vmar {
     /// Returns the current RSS count for the given RSS type.
     pub fn get_rss_counter(&self, rss_type: RssType) -> usize {
         self.0.get_rss_counter(rss_type)
@@ -810,12 +865,11 @@ impl<R> Vmar<R> {
     }
 }
 
-/// Options for creating a new mapping. The mapping is not allowed to overlap
-/// with any child VMARs. And unless specified otherwise, it is not allowed
-/// to overlap with any existing mapping, either.
-pub struct VmarMapOptions<'a, R1, R2> {
-    parent: &'a Vmar<R1>,
-    vmo: Option<Vmo<R2>>,
+/// Options for creating a new mapping. Unless specified otherwise, the new
+/// mapping is not allowed to overlap with any existing mapping.
+pub struct VmarMapOptions<'a, R> {
+    parent: &'a Vmar,
+    vmo: Option<Vmo<R>>,
     mappable: Option<Mappable>,
     perms: VmPerms,
     may_perms: VmPerms,
@@ -830,14 +884,10 @@ pub struct VmarMapOptions<'a, R1, R2> {
     handle_page_faults_around: bool,
 }
 
-impl<'a, R1, R2> VmarMapOptions<'a, R1, R2> {
+impl<'a, R> VmarMapOptions<'a, R> {
     /// Creates a default set of options with the VMO and the memory access
     /// permissions.
-    ///
-    /// The VMO must have access rights that correspond to the memory
-    /// access permissions. For example, if `perms` contains `VmPerms::Write`,
-    /// then `vmo.rights()` should contain `Rights::WRITE`.
-    pub fn new(parent: &'a Vmar<R1>, size: usize, perms: VmPerms) -> Self {
+    pub fn new(parent: &'a Vmar, size: usize, perms: VmPerms) -> Self {
         Self {
             parent,
             vmo: None,
@@ -886,7 +936,7 @@ impl<'a, R1, R2> VmarMapOptions<'a, R1, R2> {
     /// # Panics
     ///
     /// This function panics if a [`Mappable`] is already provided.
-    pub fn vmo(mut self, vmo: Vmo<R2>) -> Self {
+    pub fn vmo(mut self, vmo: Vmo<R>) -> Self {
         if self.mappable.is_some() {
             panic!("Cannot set `vmo` when `mappable` is already set");
         }
@@ -960,7 +1010,7 @@ impl<'a, R1, R2> VmarMapOptions<'a, R1, R2> {
     }
 }
 
-impl<R1> VmarMapOptions<'_, R1, Rights> {
+impl VmarMapOptions<'_, Rights> {
     /// Binds memory to map based on the [`Mappable`] enum.
     ///
     /// This method accepts file-specific details, like a page cache (inode)
@@ -993,9 +1043,9 @@ impl<R1> VmarMapOptions<'_, R1, Rights> {
     }
 }
 
-impl<R1, R2> VmarMapOptions<'_, R1, R2>
+impl<R> VmarMapOptions<'_, R>
 where
-    Vmo<R2>: VmoRightsOp,
+    Vmo<R>: VmoRightsOp,
 {
     /// Creates the mapping and adds it to the parent VMAR.
     ///
@@ -1135,7 +1185,7 @@ where
         Ok(())
     }
 
-    /// Checks whether the permissions of the mapping is subset of vmo rights.
+    /// Checks whether the permissions of the mapping is valid.
     fn check_perms(&self) -> Result<()> {
         if !VmPerms::ALL_MAY_PERMS.contains(self.may_perms)
             || !VmPerms::ALL_PERMS.contains(self.perms)
@@ -1170,12 +1220,14 @@ impl VmarQueryGuard<'_> {
 }
 
 /// Determines whether two ranges are intersected.
-/// returns false if one of the ranges has a length of 0
+///
+/// Returns false if one of the ranges has a length of 0.
 pub fn is_intersected(range1: &Range<usize>, range2: &Range<usize>) -> bool {
     range1.start.max(range2.start) < range1.end.min(range2.end)
 }
 
 /// Gets the intersection range of two ranges.
+///
 /// The two ranges should be ensured to be intersected.
 pub fn get_intersected_range(range1: &Range<usize>, range2: &Range<usize>) -> Range<usize> {
     debug_assert!(is_intersected(range1, range2));
@@ -1184,7 +1236,7 @@ pub fn get_intersected_range(range1: &Range<usize>, range2: &Range<usize>) -> Ra
 
 /// The type representing categories of Resident Set Size (RSS).
 ///
-/// See <https://github.com/torvalds/linux/blob/fac04efc5c793dccbd07e2d59af9f90b7fc0dca4/include/linux/mm_types_task.h#L26..L32>
+/// See <https://elixir.bootlin.com/linux/v6.16.5/source/include/linux/mm_types_task.h#L26-L32>
 #[repr(u32)]
 #[expect(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, TryFromInt)]

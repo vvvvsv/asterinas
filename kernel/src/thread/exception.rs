@@ -2,7 +2,6 @@
 
 #![expect(unused_variables)]
 
-use aster_rights::Full;
 #[cfg(target_arch = "x86_64")]
 use ostd::arch::cpu::context::CpuException;
 #[cfg(target_arch = "riscv64")]
@@ -48,7 +47,7 @@ pub fn handle_exception(ctx: &Context, context: &UserContext, exception: CpuExce
 
 /// Handles the page fault occurs in the input `Vmar`.
 fn handle_page_fault_from_vmar(
-    root_vmar: &Vmar<Full>,
+    root_vmar: &Vmar,
     page_fault_info: &PageFaultInfo,
 ) -> core::result::Result<(), ()> {
     if let Err(e) = root_vmar.handle_page_fault(page_fault_info) {

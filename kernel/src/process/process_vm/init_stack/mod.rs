@@ -166,7 +166,7 @@ impl InitStack {
     /// Maps the VMO of the init stack and constructs a writer to initialize its content.
     pub(super) fn map_and_write(
         &self,
-        root_vmar: &Vmar<Full>,
+        root_vmar: &Vmar,
         argv: Vec<CString>,
         envp: Vec<CString>,
         auxvec: AuxVec,

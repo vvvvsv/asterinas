@@ -6,7 +6,6 @@
 use core::ops::Range;
 
 use align_ext::AlignExt;
-use aster_rights::Full;
 use ostd::{
     mm::{CachePolicy, PageFlags, PageProperty, VmIo},
     task::disable_preempt,
@@ -121,11 +120,7 @@ fn lookup_and_parse_ldso(
     Ok(Some((ldso_file, ldso_elf)))
 }
 
-fn load_ldso(
-    root_vmar: &Vmar<Full>,
-    ldso_file: &Path,
-    ldso_elf: &ElfHeaders,
-) -> Result<LdsoLoadInfo> {
+fn load_ldso(root_vmar: &Vmar, ldso_file: &Path, ldso_elf: &ElfHeaders) -> Result<LdsoLoadInfo> {
     let range = map_segment_vmos(ldso_elf, root_vmar, ldso_file)?;
     Ok(LdsoLoadInfo {
         entry_point: range
@@ -209,7 +204,7 @@ pub struct ElfLoadInfo {
 /// [`Vmo`]: crate::vm::vmo::Vmo
 pub fn map_segment_vmos(
     elf: &ElfHeaders,
-    root_vmar: &Vmar<Full>,
+    root_vmar: &Vmar,
     elf_file: &Path,
 ) -> Result<RelocatedRange> {
     let elf_va_range = get_range_for_all_segments(elf)?;
@@ -326,7 +321,7 @@ fn get_range_for_all_segments(elf: &ElfHeaders) -> Result<Range<Vaddr>> {
 fn map_segment_vmo(
     program_header: &ProgramHeader64,
     elf_file: &Path,
-    root_vmar: &Vmar<Full>,
+    root_vmar: &Vmar,
     map_at: Vaddr,
 ) -> Result<()> {
     trace!(

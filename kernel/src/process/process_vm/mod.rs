@@ -17,7 +17,6 @@ use core::ops::Range;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use align_ext::AlignExt;
-use aster_rights::Full;
 pub use heap::Heap;
 use ostd::{
     mm::{io_util::HasVmReaderWriter, vm_space::VmQueriedItem, PageFlags, UFrame},
@@ -79,7 +78,7 @@ use crate::{
 
 /// The process user space virtual memory
 pub struct ProcessVm {
-    root_vmar: Mutex<Option<Vmar<Full>>>,
+    root_vmar: Mutex<Option<Vmar>>,
     init_stack: InitStack,
     heap: Heap,
     #[cfg(target_arch = "riscv64")]
@@ -91,7 +90,7 @@ pub struct ProcessVm {
 /// It is bound to a [`ProcessVm`] and can only be obtained from
 /// the [`ProcessVm::lock_root_vmar`] method.
 pub struct ProcessVmarGuard<'a> {
-    inner: MutexGuard<'a, Option<Vmar<Full>>>,
+    inner: MutexGuard<'a, Option<Vmar>>,
 }
 
 impl ProcessVmarGuard<'_> {
@@ -100,14 +99,14 @@ impl ProcessVmarGuard<'_> {
     /// # Panics
     ///
     /// This method will panic if the process has exited and its VMAR has been dropped.
-    pub fn unwrap(&self) -> &Vmar<Full> {
+    pub fn unwrap(&self) -> &Vmar {
         self.inner.as_ref().unwrap()
     }
 
     /// Returns a reference to the process VMAR if it exists.
     ///
     /// Returns `None` if the process has exited and its VMAR has been dropped.
-    pub fn as_ref(&self) -> Option<&Vmar<Full>> {
+    pub fn as_ref(&self) -> Option<&Vmar> {
         self.inner.as_ref()
     }
 
@@ -115,7 +114,7 @@ impl ProcessVmarGuard<'_> {
     ///
     /// If the `new_vmar` is `None`, this method will remove the
     /// current VMAR.
-    pub(super) fn set_vmar(&mut self, new_vmar: Option<Vmar<Full>>) {
+    pub(super) fn set_vmar(&mut self, new_vmar: Option<Vmar>) {
         *self.inner = new_vmar;
     }
 }
@@ -136,7 +135,7 @@ impl Clone for ProcessVm {
 impl ProcessVm {
     /// Allocates a new `ProcessVm`
     pub fn alloc() -> Self {
-        let root_vmar = Vmar::<Full>::new_root();
+        let root_vmar = Vmar::new_root();
         let init_stack = InitStack::new();
         let heap = Heap::new();
         heap.alloc_and_map_vm(&root_vmar).unwrap();
@@ -154,7 +153,7 @@ impl ProcessVm {
     /// The returned `ProcessVm` will have a forked `Vmar`.
     pub fn fork_from(other: &ProcessVm) -> Result<Self> {
         let process_vmar = other.lock_root_vmar();
-        let root_vmar = Mutex::new(Some(Vmar::<Full>::fork_from(process_vmar.unwrap())?));
+        let root_vmar = Mutex::new(Some(Vmar::fork_from(process_vmar.unwrap())?));
         Ok(Self {
             root_vmar,
             heap: other.heap.clone(),
@@ -351,7 +350,7 @@ impl ProcessVm {
         }
     }
 
-    fn query_page(&self, vaddr: Vaddr, vmar: &Vmar<Full>) -> Result<Option<VmQueriedItem>> {
+    fn query_page(&self, vaddr: Vaddr, vmar: &Vmar) -> Result<Option<VmQueriedItem>> {
         debug_assert!(is_userspace_vaddr(vaddr) && vaddr % PAGE_SIZE == 0);
 
         let preempt_guard = disable_preempt();
@@ -368,7 +367,7 @@ pub fn renew_vm_and_map(ctx: &Context) {
     let process_vm = ctx.process.vm();
     let mut root_vmar = process_vm.lock_root_vmar();
 
-    let new_vmar = Vmar::<Full>::new_root();
+    let new_vmar = Vmar::new_root();
     let guard = disable_preempt();
     *ctx.thread_local.root_vmar().borrow_mut() = Some(new_vmar.dup().unwrap());
     new_vmar.vm_space().activate();

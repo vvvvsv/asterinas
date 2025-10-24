@@ -4,7 +4,6 @@
 
 use core::cell::Ref;
 
-use aster_rights::Full;
 use ostd::{
     mm::{Fallible, Infallible, PodAtomic, VmReader, VmWriter, MAX_USERSPACE_VADDR},
     task::Task,
@@ -41,7 +40,7 @@ impl Context<'_> {
 /// The user's memory space of the current task.
 ///
 /// It provides methods to read from or write to the user space efficiently.
-pub struct CurrentUserSpace<'a>(Ref<'a, Option<Vmar<Full>>>);
+pub struct CurrentUserSpace<'a>(Ref<'a, Option<Vmar>>);
 
 /// Gets the [`CurrentUserSpace`] from the current task.
 ///
@@ -77,7 +76,7 @@ impl<'a> CurrentUserSpace<'a> {
     /// # Panics
     ///
     /// This method will panic if the current process has cleared its `Vmar`.
-    pub fn root_vmar(&self) -> &Vmar<Full> {
+    pub fn root_vmar(&self) -> &Vmar {
         self.0.as_ref().unwrap()
     }
 

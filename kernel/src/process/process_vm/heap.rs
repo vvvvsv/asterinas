@@ -3,7 +3,6 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use align_ext::AlignExt;
-use aster_rights::Full;
 
 use crate::{
     prelude::*,
@@ -35,7 +34,7 @@ impl Heap {
     }
 
     /// Initializes and maps the heap virtual memory.
-    pub(super) fn alloc_and_map_vm(&self, root_vmar: &Vmar<Full>) -> Result<()> {
+    pub(super) fn alloc_and_map_vm(&self, root_vmar: &Vmar) -> Result<()> {
         let vmar_map_options = {
             let perms = VmPerms::READ | VmPerms::WRITE;
             root_vmar
