@@ -131,4 +131,8 @@ impl FileLike for InodeHandle<Rights> {
         }
         self.0.fallocate(mode, offset, len)
     }
+
+    fn inode(&self) -> &Arc<dyn Inode> {
+        self.0.inode()
+    }
 }

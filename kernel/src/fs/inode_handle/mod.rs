@@ -294,6 +294,7 @@ impl InodeHandle_ {
     pub fn set_owner(&self, uid: Uid) -> Result<()>;
     pub fn group(&self) -> Result<Gid>;
     pub fn set_group(&self, gid: Gid) -> Result<()>;
+    pub fn inode(&self) -> &Arc<dyn Inode>;
 }
 
 impl Debug for InodeHandle_ {
