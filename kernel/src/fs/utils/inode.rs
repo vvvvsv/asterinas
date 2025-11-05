@@ -16,6 +16,8 @@ use crate::{
     fs::{
         device::{Device, DeviceType},
         inode_handle::FileIo,
+        path::Path,
+        ramfs::memfd::MemfdInode,
         utils::StatusFlags,
     },
     prelude::*,
@@ -355,7 +357,7 @@ pub trait Inode: Any + Sync + Send {
         Err(Error::new(Errno::ENOTDIR))
     }
 
-    fn read_link(&self) -> Result<String> {
+    fn read_link(&self) -> Result<ReadLinkResult> {
         Err(Error::new(Errno::EISDIR))
     }
 
@@ -641,5 +643,43 @@ impl Clone for Extension {
 impl Default for Extension {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// The result of reading a symbolic link `Inode`.
+pub enum ReadLinkResult {
+    /// A symbolic link that resolves to a string.
+    Symbolic(String),
+    /// A symbolic link that resolves to a path.
+    // NOTE: For `InodeHandle` in `/proc/[pid]/fd/[fd]`, we should use this variant.
+    Path(Path),
+    /// A symbolic link that resolves to an `Inode` without an associated path.
+    // FIXME: This variant exists because not all `Arc<dyn FileLike>`s are associated with paths.
+    // We should introduce `PipeFs`, `SocketFs`, and `AnonInodeFs`, add pseudo paths and dentries
+    // for these inodes, and eventually remove this variant.
+    Inode(Arc<dyn Inode>),
+}
+
+impl ReadLinkResult {
+    pub fn into_symbolic(self) -> Option<String> {
+        match self {
+            ReadLinkResult::Symbolic(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn into_string(self) -> String {
+        match self {
+            ReadLinkResult::Symbolic(s) => s,
+            ReadLinkResult::Path(path) => path.abs_path(),
+            ReadLinkResult::Inode(inode) => {
+                // FIXME: Add pseudo dentries to store the correct name.
+                if let Some(memfd_inode) = inode.downcast_ref::<MemfdInode>() {
+                    memfd_inode.name().to_string()
+                } else {
+                    String::from("[pseudo inode]")
+                }
+            }
+        }
     }
 }

@@ -25,8 +25,9 @@ use crate::{
         registry::{FsProperties, FsType},
         utils::{
             mkmod, AccessMode, DirentCounter, DirentVisitor, FallocMode, FileSystem, FsFlags,
-            Inode, InodeMode, InodeType, IoctlCmd, Metadata, MknodType, StatusFlags, SuperBlock,
-            XattrName, XattrNamespace, XattrSetFlags, NAME_MAX, XATTR_VALUE_MAX_LEN,
+            Inode, InodeMode, InodeType, IoctlCmd, Metadata, MknodType, ReadLinkResult,
+            StatusFlags, SuperBlock, XattrName, XattrNamespace, XattrSetFlags, NAME_MAX,
+            XATTR_VALUE_MAX_LEN,
         },
     },
     prelude::*,
@@ -466,7 +467,7 @@ impl OverlayInode {
         upper.link(old, name)
     }
 
-    pub fn read_link(&self) -> Result<String> {
+    pub fn read_link(&self) -> Result<ReadLinkResult> {
         if self.type_ != InodeType::SymLink {
             return_errno_with_message!(Errno::EINVAL, "self is not symlink");
         }
@@ -948,7 +949,7 @@ impl Inode for OverlayInode {
     fn rmdir(&self, name: &str) -> Result<()>;
     fn lookup(&self, name: &str) -> Result<Arc<dyn Inode>>;
     fn rename(&self, old_name: &str, target: &Arc<dyn Inode>, new_name: &str) -> Result<()>;
-    fn read_link(&self) -> Result<String>;
+    fn read_link(&self) -> Result<ReadLinkResult>;
     fn write_link(&self, target: &str) -> Result<()>;
     fn ioctl(&self, cmd: IoctlCmd, arg: usize) -> Result<i32>;
     fn sync_all(&self) -> Result<()>;
@@ -1461,6 +1462,9 @@ mod tests {
         let link = d1.create("link", InodeType::SymLink, mode).unwrap();
         let link_str = "link_to_somewhere";
         link.write_link(link_str).unwrap();
-        assert_eq!(link.read_link().unwrap(), link_str.to_string());
+        assert_eq!(
+            link.read_link().unwrap().into_symbolic().unwrap(),
+            link_str.to_string()
+        );
     }
 }
