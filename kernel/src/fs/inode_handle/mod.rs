@@ -19,15 +19,12 @@ use crate::{
         path::Path,
         utils::{
             AccessMode, DirentVisitor, FallocMode, FileRange, FlockItem, FlockList, Inode,
-            InodeMode, InodeType, IoctlCmd, Metadata, RangeLockItem, RangeLockList, RangeLockType,
-            SeekFrom, StatusFlags, OFFSET_MAX,
+            InodeType, IoctlCmd, RangeLockItem, RangeLockList, RangeLockType, SeekFrom,
+            StatusFlags, OFFSET_MAX,
         },
     },
     prelude::*,
-    process::{
-        signal::{PollHandle, Pollable},
-        Gid, Uid,
-    },
+    process::signal::{PollHandle, Pollable},
 };
 
 #[derive(Debug)]
@@ -287,13 +284,6 @@ impl InodeHandle_ {
 #[inherit_methods(from = "self.path")]
 impl InodeHandle_ {
     pub fn size(&self) -> usize;
-    pub fn metadata(&self) -> Metadata;
-    pub fn mode(&self) -> Result<InodeMode>;
-    pub fn set_mode(&self, mode: InodeMode) -> Result<()>;
-    pub fn owner(&self) -> Result<Uid>;
-    pub fn set_owner(&self, uid: Uid) -> Result<()>;
-    pub fn group(&self) -> Result<Gid>;
-    pub fn set_group(&self, gid: Gid) -> Result<()>;
     pub fn inode(&self) -> &Arc<dyn Inode>;
 }
 
