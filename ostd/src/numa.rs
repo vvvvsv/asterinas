@@ -38,6 +38,9 @@ pub fn num_nodes() -> usize {
 cpu_local! {
     /// The NUMA node ID of the current CPU.
     static NODE_ID: Once<NodeId> = Once::new();
+    /// The leader CPU of the current CPU, i.e., the CPU with the smallest ID
+    /// in the current CPU's NUMA node.
+    static LEADER_CPU: Once<CpuId> = Once::new();
 }
 
 /// Returns the NUMA node ID of the given CPU.
@@ -45,8 +48,79 @@ pub fn node_id(cpu_id: CpuId) -> NodeId {
     *NODE_ID.get_on_cpu(cpu_id).get().unwrap()
 }
 
+/// Returns the leader CPU of the NUMA node of the given CPU.
+pub fn leader_cpu_of(cpu_id: CpuId) -> CpuId {
+    LEADER_CPU.get_on_cpu(cpu_id).get().unwrap().clone()
+}
+
+/// Returns whether the given CPU is the leader CPU of its NUMA node.
+pub fn is_leader_cpu(cpu_id: CpuId) -> bool {
+    leader_cpu_of(cpu_id) == cpu_id
+}
+
+/// Defines a statically-allocated CPU-local variable, which is only meaningful
+/// on leader CPUs, and automatically generates an accessor function for it.
+///
+/// # Examples
+///
+/// ```rust
+/// leader_cpu_local! {
+///     pub static FOO: AtomicU32 = AtomicU32::new(1);
+/// }
+/// ```
+///
+/// The above will be expanded to:
+///
+/// ```rust
+/// cpu_local! {
+///     static FOO: AtomicU32 = AtomicU32::new(1);
+/// }
+///
+/// pub fn foo(leader_cpu: CpuId) -> &'static AtomicU32 {
+///   debug_assert!(is_leader_cpu(leader_cpu));
+///   FOO.get_on_cpu(leader_cpu)
+/// }
+/// ```
+///
+/// # Panics
+///
+/// The accessor functions panic if the given CPU is not a leader CPU.
+#[macro_export]
+macro_rules! leader_cpu_local {
+    ($( $(#[$attr:meta])* $vis:vis static $name:ident: $t:ty = $init:expr; )*) => {
+        cpu_local! {
+            $(
+                $(#[$attr])*
+                static $name: $t = $init;
+            )*
+        }
+
+        $(
+            paste::paste! {
+                $(#[$attr])*
+                $vis fn [<$name:lower>](leader_cpu: CpuId) -> &'static $t {
+                    debug_assert!(is_leader_cpu(leader_cpu));
+                    $name.get_on_cpu(leader_cpu)
+                }
+            }
+        )*
+    };
+}
+
+leader_cpu_local! {
+    /// The number of CPUs in the NUMA node of the leader CPU.
+    pub static NUM_CPUS_IN_NODE: Once<usize> = Once::new();
+}
+
+static LEADER_CPU_OF_NODE: Once<&'static [CpuId]> = Once::new();
+
+/// Returns the leader CPU of the given NUMA node.
+pub fn leader_cpu_of_node(node_id: NodeId) -> CpuId {
+    LEADER_CPU_OF_NODE.get().unwrap()[node_id.as_usize()]
+}
+
 pub(super) fn init() {
-    let (num_nodes, leader_cpu) = init_numa_topology();
+    let (num_nodes, leader_cpu_of_node) = init_numa_topology();
 
     // SAFETY: We're in the boot context, calling the method only once.
     unsafe { init_num_nodes(num_nodes) };
@@ -64,6 +138,35 @@ pub(super) fn init() {
     for cpu_id in all_cpus() {
         NODE_ID.get_on_cpu(cpu_id).call_once(|| NodeId::new(0));
     }
+
+    // Initialize the leader CPU of each CPU. Since the number of CPUs won't be too large,
+    // and `alloc` is not allowed now, the O(n^2) approach is suitable here.
+    for cpu_id in all_cpus() {
+        let leader_cpu = LEADER_CPU.get_on_cpu(cpu_id);
+        if leader_cpu.is_completed() {
+            continue;
+        }
+        leader_cpu.call_once(|| cpu_id);
+        let node_id = NODE_ID.get_on_cpu(cpu_id).get().unwrap();
+        leader_cpu_of_node[node_id.as_usize()] = cpu_id;
+        let mut num_cpus_in_this_node = 1;
+
+        all_cpus()
+            .filter(|&id| {
+                id.as_usize() > cpu_id.as_usize()
+                    && NODE_ID.get_on_cpu(id).get().unwrap() == node_id
+            })
+            .for_each(|non_leader_id| {
+                debug_assert!(!LEADER_CPU.get_on_cpu(non_leader_id).is_completed());
+                num_cpus_in_this_node += 1;
+                LEADER_CPU.get_on_cpu(non_leader_id).call_once(|| cpu_id);
+            });
+        num_cpus_in_node(cpu_id).call_once(|| num_cpus_in_this_node);
+    }
+
+    LEADER_CPU_OF_NODE.call_once(|| leader_cpu_of_node);
+
+    // FIXME: Add a fall back list for each NUMA node.
 
     some_print();
 }
@@ -122,10 +225,12 @@ fn some_print() {
     //     }
     // }
     for cpu in all_cpus() {
+        let leader_cpu = leader_cpu_of(cpu);
         log::warn!(
-            "cpu {}: node_id {}",
+            "cpu {}: node_id {}, leader {}",
             cpu.as_usize(),
-            node_id(cpu).as_usize()
+            node_id(cpu).as_usize(),
+            leader_cpu.as_usize()
         );
     }
     for i in 0..num_nodes {
@@ -133,5 +238,14 @@ fn some_print() {
             let dist = DISTANCE_MATRIX.get().unwrap()[i * num_nodes + j];
             log::warn!("distance {}->{}: {}", i, j, dist);
         }
+    }
+    for node in 0..num_nodes {
+        let leader_cpu = leader_cpu_of_node(NodeId::new(node as u32));
+        log::warn!(
+            "node {}: leader_cpu {}, num_cpus_in_node {}",
+            node,
+            leader_cpu.as_usize(),
+            num_cpus_in_node(leader_cpu).get().unwrap()
+        );
     }
 }
