@@ -392,14 +392,11 @@ pub(super) struct DentryKey {
 impl DentryKey {
     /// Forms a `DentryKey` from the corresponding `Dentry`.
     pub(super) fn new(dentry: &Dentry) -> Self {
-        let (name, parent) = match dentry.name_and_parent.read().as_ref() {
-            Some(name_and_parent) => name_and_parent.clone(),
-            None => (String::from("/"), dentry.this()),
+        let (name, parent_ptr) = match dentry.name_and_parent.read().as_ref() {
+            Some((name, parent)) => (name.clone(), Arc::as_ptr(parent) as usize),
+            None => (String::from("/"), dentry.this.as_ptr() as usize),
         };
-        Self {
-            name,
-            parent_ptr: Arc::as_ptr(&parent) as usize,
-        }
+        Self { name, parent_ptr }
     }
 }
 
