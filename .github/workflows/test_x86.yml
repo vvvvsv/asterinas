@@ -67,6 +67,11 @@ jobs:
           - test_id: 'syscall-multiboot2-smp4'
             boot_protocol: 'multiboot2'
             smp: 4
+          # NUMA Syscall Test (Multiboot2)
+          - test_id: 'syscall-multiboot2-smp4-numa'
+            boot_protocol: 'multiboot2'
+            smp: 4
+            numa: true
 
           # General Test (Linux EFI Handover) (Debug Build)
           - test_id: 'general-handover64-debug'
