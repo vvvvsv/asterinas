@@ -5,7 +5,9 @@
 use spin::Once;
 
 use crate::{
-    arch::boot::numa::{init_numa_topology, MemoryRange, MEMORY_RANGES, PROCESSOR_AFFINITIES},
+    arch::boot::numa::{
+        init_numa_topology, MemoryRange, DISTANCE_MATRIX, MEMORY_RANGES, PROCESSOR_AFFINITIES,
+    },
     cpu::{all_cpus, CpuId},
     cpu_local,
     util::id_set::Id,
@@ -180,6 +182,7 @@ pub(super) fn init() {
     LEADER_CPU_OF_NODE.call_once(|| leader_cpu_of_node);
 
     // FIXME: Add a fall back list for each NUMA node.
+    some_print();
 }
 
 /// The ID of a NUMA node in the system.
@@ -229,4 +232,45 @@ unsafe impl Id for NodeId {
 /// This method panics if the NUMA topology is not initialized.
 pub fn memory_ranges() -> &'static [MemoryRange] {
     MEMORY_RANGES.get().unwrap()
+}
+
+fn some_print() {
+    let num_nodes = num_nodes();
+    log::warn!("num_nodes: {}", num_nodes);
+    for processor_affinity in PROCESSOR_AFFINITIES.get().unwrap().iter() {
+        log::warn!("processor_affinity: {:?}", processor_affinity);
+    }
+    for memory_range in MEMORY_RANGES.get().unwrap().iter() {
+        log::warn!("memory_range: {:?}", memory_range);
+    }
+    // let regions: &crate::boot::memory_region::MemoryRegionArray<512> = &crate::boot::EARLY_INFO.get().unwrap().memory_regions;
+    // for region in regions.iter() {
+    //     if region.typ() == crate::boot::memory_region::MemoryRegionType::Usable {
+    //         log::warn!("region: {:?}", region);
+    //     }
+    // }
+    for cpu in all_cpus() {
+        let leader_cpu = leader_cpu_of(cpu);
+        log::warn!(
+            "cpu {}: node_id {}, leader {}",
+            cpu.as_usize(),
+            node_id_of_cpu(cpu).as_usize(),
+            leader_cpu.as_usize()
+        );
+    }
+    for i in 0..num_nodes {
+        for j in 0..num_nodes {
+            let dist = DISTANCE_MATRIX.get().unwrap()[i * num_nodes + j];
+            log::warn!("distance {}->{}: {}", i, j, dist);
+        }
+    }
+    for node in 0..num_nodes {
+        let leader_cpu = leader_cpu_of_node(NodeId::new(node as u32));
+        log::warn!(
+            "node {}: leader_cpu {}, num_cpus_in_node {}",
+            node,
+            leader_cpu.as_usize(),
+            num_cpus_in_node(leader_cpu).get().unwrap()
+        );
+    }
 }
