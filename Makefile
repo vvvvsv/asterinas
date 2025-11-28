@@ -32,6 +32,8 @@ GDB_PROFILE_COUNT ?= 200
 GDB_PROFILE_INTERVAL ?= 0.1
 # End of GDB options.
 
+QMP_PORT ?= 9889
+
 # The Makefile provides a way to run arbitrary tests in the kernel
 # mode using the kernel command line.
 # Here are the options for the auto test feature.
