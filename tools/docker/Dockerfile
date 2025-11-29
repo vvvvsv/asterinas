@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 
-ARG BASE_VERSION
-FROM asterinas/nix:${BASE_VERSION} AS build-base
+FROM ghcr.io/vvvvsv/asterinas/nix:latest AS build-base
 
 SHELL ["/bin/bash", "-c"]
 

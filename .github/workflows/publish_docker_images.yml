@@ -1,4 +1,4 @@
-name: Publish Docker images
+name: Build Docker images and push to GHCR
 
 on:
   workflow_dispatch:
@@ -13,10 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Prepare for Docker build and push
         id: prepare-for-docker-build-and-push
         run: |
-          ./tools/github_workflows/prepare_for_docker_build_and_push.sh ${{ secrets.DOCKERHUB_USERNAME }} ${{ secrets.DOCKERHUB_TOKEN }} osdk
+          ./tools/github_workflows/prepare_for_docker_build_and_push.sh osdk
 
       - name: Build and push the OSDK development image
         if: ${{ steps.prepare-for-docker-build-and-push.outputs.is_existed == 'false' }}
@@ -26,7 +34,7 @@ jobs:
           file: ./osdk/tools/docker/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: asterinas/osdk:${{ steps.prepare-for-docker-build-and-push.outputs.image_version }}
+          tags: ghcr.io/${{ github.repository }}/osdk:latest
           build-args: |
             ASTER_RUST_VERSION=${{ steps.prepare-for-docker-build-and-push.outputs.rust_version }}
 
@@ -35,10 +43,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Prepare for Docker build and push
         id: prepare-for-docker-build-and-push
         run: |
-          ./tools/github_workflows/prepare_for_docker_build_and_push.sh ${{ secrets.DOCKERHUB_USERNAME }} ${{ secrets.DOCKERHUB_TOKEN }} nix
+          ./tools/github_workflows/prepare_for_docker_build_and_push.sh nix
 
       - name: Build and push the Nix image
         if: ${{ steps.prepare-for-docker-build-and-push.outputs.is_existed == 'false' }}
@@ -48,19 +64,25 @@ jobs:
           file: ./tools/docker/nix/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: asterinas/nix:${{ steps.prepare-for-docker-build-and-push.outputs.image_version }}
-          build-args: |
-            BASE_VERSION=${{ steps.prepare-for-docker-build-and-push.outputs.image_version }}
+          tags: ghcr.io/${{ github.repository }}/nix:latest
 
   publish_asterinas_image:
     needs: publish_nix_image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Prepare for Docker build and push
         id: prepare-for-docker-build-and-push
         run: |
-          ./tools/github_workflows/prepare_for_docker_build_and_push.sh ${{ secrets.DOCKERHUB_USERNAME }} ${{ secrets.DOCKERHUB_TOKEN }} asterinas
+          ./tools/github_workflows/prepare_for_docker_build_and_push.sh asterinas
 
       - name: Build and push the Asterinas development image
         if: ${{ steps.prepare-for-docker-build-and-push.outputs.is_existed == 'false' }}
@@ -70,6 +92,4 @@ jobs:
           file: ./tools/docker/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: asterinas/asterinas:${{ steps.prepare-for-docker-build-and-push.outputs.image_version }}
-          build-args: |
-            BASE_VERSION=${{ steps.prepare-for-docker-build-and-push.outputs.image_version }}
+          tags: ghcr.io/${{ github.repository }}/asterinas:latest
