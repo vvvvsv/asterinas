@@ -30,8 +30,8 @@ Linux互換のABIを提供し、Linuxの代替としてシームレスに動作�
   [MPL](#License)の柔軟性を活かして、カーネルモジュールをオープンソースとして公開するか、
   プロプライエタリとして保持するかを選択できます。
 
-本番レベルのOSカーネルを目指す道のりは困難ですが、私たちはこの目標に向けて着実に前進しています。  
-2024年を通じて、[年末レポート](https://asterinas.github.io/2025/01/20/asterinas-in-2024.html)に詳述されているように、Asterinasの成熟度を大幅に向上させました。  
+本番レベルのOSカーネルを目指す道のりは困難ですが、私たちはこの目標に向けて着実に前進しています。
+2024年を通じて、[年末レポート](https://asterinas.github.io/2025/01/20/asterinas-in-2024.html)に詳述されているように、Asterinasの成熟度を大幅に向上させました。
 そして2025年には、Asterinasをx86-64仮想マシン環境で本番運用可能なレベルに引き上げ、実際のユーザーを獲得することを主な目標としています。
 
 ## クイックスタート
@@ -48,7 +48,7 @@ git clone https://github.com/asterinas/asterinas
 2. 開発環境としてDockerコンテナを実行します。
 
 ```bash
-docker run -it --privileged --network=host --device=/dev/kvm -v $(pwd)/asterinas:/root/asterinas asterinas/asterinas:0.16.1-20251126
+docker run -it --privileged --network=host --device=/dev/kvm -v $(pwd)/asterinas:/root/asterinas ghcr.io/vvvvsv/asterinas/asterinas:latest
 ```
 
 3. コンテナ内でプロジェクトフォルダに移動し、Asterinasをビルドして実行します。

@@ -10,14 +10,14 @@ on:
   push:
     branches:
       - main
-    paths: 
+    paths:
       - VERSION
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    container: asterinas/asterinas:0.16.1-20251126
+    container: ghcr.io/vvvvsv/asterinas/asterinas:latest
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +26,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           ./tools/github_workflows/publish_osdk_and_ostd.sh --dry-run
-      
+
       - name: Publish OSTD and OSDK
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
