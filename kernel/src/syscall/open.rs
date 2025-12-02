@@ -92,7 +92,7 @@ fn do_open(
         LookupResult::Resolved(target) => match target {
             PathOrInode::Path(path) => Arc::new(path.open(open_args)?),
             PathOrInode::Inode(inode) => {
-                // TODO: Support re-opening anonymous pipes.
+                // FIXME: Support re-opening anonymous pipes.
                 let memfd_inode = Arc::downcast::<MemfdInode>(inode).map_err(|_| {
                     Error::with_message(Errno::ENXIO, "the inode is not re-openable")
                 })?;

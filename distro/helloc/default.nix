@@ -6,6 +6,13 @@ pkgs.stdenv.mkDerivation {
 
   src = ./.;
 
+  dontPatchELF = 1;
+  dontPatchShebangs = 1;
+  dontStrip = 1;
+  dontCheckReferences = 1;
+  dontCheckForBrokenSymlinks = 1;
+  dontRewriteSymlinks = 1;
+
   buildInputs = [ pkgs.gcc ];
 
   buildPhase = ''
