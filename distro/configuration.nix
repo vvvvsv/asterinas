@@ -17,7 +17,7 @@
 
   # List packages installed in system profile.
   # You can use https://search.nixos.org/ to find more packages (and options).
-  environment.systemPackages = with pkgs; [ hello-asterinas ];
+  environment.systemPackages = with pkgs; [ hello-asterinas vim ];
 
   # Uncomment the following two lines to enable Podman.
   # virtualisation.podman.enable = true;
