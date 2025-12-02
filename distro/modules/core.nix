@@ -31,8 +31,8 @@ in {
     echo "Executing postBootCommands..."
     rm -rf /etc/resolv.conf
     ln -s ${resolv-conf} /etc/resolv.conf
-    PATH=$PATH:/nix/var/nix/profiles/system/sw/bin:~/.nix-profile/bin
     if [ "${builtins.getEnv "NIXOS_DISABLE_SYSTEMD"}" = "true" ]; then
+      source /etc/profile
       ${builtins.getEnv "NIXOS_STAGE_2_INIT"}
     fi
   '';
