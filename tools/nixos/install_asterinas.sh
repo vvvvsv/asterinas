@@ -84,6 +84,8 @@ cp ${DISTRO_DIR}/configuration.nix ${BUILD_DIR}/etc/nixos
 cp ${DISTRO_DIR}/aster_configuration.nix ${BUILD_DIR}/etc/nixos
 cp -r ${DISTRO_DIR}/modules ${BUILD_DIR}/etc/nixos
 cp -r ${DISTRO_DIR}/overlays ${BUILD_DIR}/etc/nixos
+mkdir -p ${BUILD_DIR}/root
+cp -r ${DISTRO_DIR}/helloc ${BUILD_DIR}/root
 
 nixos-install --root ${BUILD_DIR} --no-root-passwd
 
