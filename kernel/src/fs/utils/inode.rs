@@ -483,7 +483,7 @@ pub trait Inode: Any + InodeIo + Send + Sync {
         let metadata = self.metadata();
         let mode = metadata.mode;
 
-        if metadata.uid == creds.fsuid() {
+        if metadata.uid == creds.fsuid() || metadata.uid.is_root() {
             if (perm.may_read() && !mode.is_owner_readable())
                 || (perm.may_write() && !mode.is_owner_writable())
                 || (perm.may_exec() && !mode.is_owner_executable())
