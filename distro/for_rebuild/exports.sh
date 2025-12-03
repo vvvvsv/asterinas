@@ -1,0 +1,14 @@
+export NIXOS_KERNEL=${NIXOS_KERNEL:-"/root/for_rebuild/aster-nix-osdk-bin"}
+echo ${NIXOS_KERNEL}
+export NIXOS_STAGE_1_INIT=${NIXOS_STAGE_1_INIT:-"/root/for_rebuild/stage_1_init.sh"}
+echo ${NIXOS_STAGE_1_INIT}
+export NIXOS_RESOLV_CONF=${NIXOS_RESOLV_CONF:-"/root/for_rebuild/resolv.conf"}
+echo ${NIXOS_RESOLV_CONF}
+export NIXOS_DISABLE_SYSTEMD=${NIXOS_DISABLE_SYSTEMD:-"true"}
+echo ${NIXOS_DISABLE_SYSTEMD}
+export NIXOS_STAGE_2_INIT=${NIXOS_STAGE_2_INIT:-"/bin/sh -l"}
+echo ${NIXOS_STAGE_2_INIT}
+export CONSOLE=${CONSOLE:-"hvc0"}
+echo ${CONSOLE}
+export LOG_LEVEL=${LOG_LEVEL:-"warn"}
+echo ${LOG_LEVEL}
