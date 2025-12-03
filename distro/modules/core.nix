@@ -31,6 +31,7 @@ in {
     echo "Executing postBootCommands..."
     rm -rf /etc/resolv.conf
     ln -s ${resolv-conf} /etc/resolv.conf
+    ln -s /proc/self/fd /dev/fd
     if [ "${builtins.getEnv "NIXOS_DISABLE_SYSTEMD"}" = "true" ]; then
       ${builtins.getEnv "NIXOS_STAGE_2_INIT"}
     fi
