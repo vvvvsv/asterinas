@@ -12,7 +12,7 @@ use crate::{
 /// The base address of user heap
 pub const USER_HEAP_BASE: Vaddr = 0x0000_0000_1000_0000;
 /// The max allowed size of user heap
-pub const USER_HEAP_SIZE_LIMIT: usize = 16 * 1024 * PAGE_SIZE; // 16 * 4MB
+pub const USER_HEAP_SIZE_LIMIT: usize = 4 * 16 * 1024 * PAGE_SIZE; // 64 * 4MB
 
 #[derive(Debug)]
 pub struct Heap {
@@ -54,7 +54,7 @@ impl Heap {
                 .unwrap()
                 .offset(self.base + PAGE_SIZE)
         };
-        vmar_reserve_options.build()?;
+        vmar_reserve_options.build()?; // here
 
         self.set_uninitialized();
         Ok(())
