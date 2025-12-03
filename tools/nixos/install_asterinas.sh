@@ -87,6 +87,10 @@ cp -r ${DISTRO_DIR}/modules ${BUILD_DIR}/etc/nixos
 cp -r ${DISTRO_DIR}/overlays ${BUILD_DIR}/etc/nixos
 mkdir -p ${BUILD_DIR}/root
 cp -r ${DISTRO_DIR}/helloc ${BUILD_DIR}/root
+cp -r ${DISTRO_DIR}/for_rebuild ${BUILD_DIR}/root
+cp ${ASTERINAS_DIR}/target/osdk/iso_root/boot/aster-nix-osdk-bin ${BUILD_DIR}/root/for_rebuild/
+cp ${ASTERINAS_DIR}/tools/nixos/stage_1_init.sh ${BUILD_DIR}/root/for_rebuild/
+cp ${NIXOS_DIR}/resolv.conf ${BUILD_DIR}/root/for_rebuild/
 
 export PATH=${PATH}:/run/current-system/sw/bin
 nixos-install --root ${BUILD_DIR} --no-root-passwd
