@@ -1,0 +1,77 @@
+From 376cd867d41c24c1d597d485149d3c561c94806d Mon Sep 17 00:00:00 2001
+From: Wang Siyuan <wsy@stu.pku.edu.cn>
+Date: Fri, 5 Dec 2025 11:11:44 +0800
+Subject: [PATCH] Bypass systemd
+
+---
+ src/main.rs    | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/src/main.rs b/src/main.rs
+index 2641aba9f13a..2c78e90309ac 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,6 +1,9 @@
+ #![deny(clippy::all)]
+ #![allow(clippy::too_many_arguments)]
+ #![allow(clippy::type_complexity)]
++#![allow(dead_code)]
++#![allow(unused_imports)]
++#![allow(unused_variables)]
+
+ use std::{
+     cell::RefCell,
+@@ -954,6 +957,8 @@ fn do_user_switch(parent_exe: String) -> anyhow::Result<()> {
+         die();
+     }
+
++    eprintln!("do_user_switch: Bypass systemd");
++/*
+     let dbus_conn = LocalConnection::new_session().context("Failed to open dbus connection")?;
+     let systemd = systemd1_proxy(&dbus_conn);
+
+@@ -991,6 +996,7 @@ fn do_user_switch(parent_exe: String) -> anyhow::Result<()> {
+     dbus_conn
+         .remove_match(jobs_token)
+         .context("Failed to remove jobs token")?;
++*/
+
+     Ok(())
+ }
+@@ -1140,6 +1146,8 @@ won't take effect until you reboot the system.
+     let handler = SigHandler::Handler(handle_sigpipe);
+     unsafe { signal::signal(Signal::SIGPIPE, handler) }.context("Failed to set SIGPIPE handler")?;
+
++    eprintln!("do_system_switch: Bypass systemd 1");
++/*
+     let mut units_to_stop = HashMap::new();
+     let mut units_to_skip = HashMap::new();
+     let mut units_to_filter = HashMap::new(); // units not shown
+@@ -1587,6 +1595,7 @@ won't take effect until you reboot the system.
+
+     // Wait for all stop jobs to finish
+     block_on_jobs(&dbus_conn, &submitted_jobs);
++*/
+
+     let mut exit_code = 0;
+
+@@ -1606,6 +1615,8 @@ won't take effect until you reboot the system.
+             exit_code = 2;
+         }
+     }
++    eprintln!("do_system_switch: Bypass systemd 2");
++/*
+
+     // Handle the activation script requesting the restart or reload of a unit.
+     for unit in std::fs::read_to_string(RESTART_BY_ACTIVATION_LIST_FILE)
+@@ -1992,6 +2003,7 @@ won't take effect until you reboot the system.
+
+         exit_code = 4;
+     }
++*/
+
+     if exit_code == 0 {
+         log::info!(
+--
+2.39.5
+
