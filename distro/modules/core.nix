@@ -59,5 +59,6 @@ in {
     filter-syscalls = false;
     require-sigs = false;
     sandbox = false;
+    build-users-group = [ ];
   };
 }
