@@ -67,6 +67,14 @@ pub fn main() {
             execute_forwarded_command_on_each_crate("clippy", &args.args, true)
         }
         OsdkSubcommand::Doc(args) => execute_forwarded_command("doc", &args.args, false),
+        OsdkSubcommand::Unwind => {
+            let work_dir: PathBuf = std::env::current_dir().unwrap();
+            let qemu_log_path = work_dir.join("qemu.log");
+            let aster_bin_path = work_dir.join("target").join("osdk").join("aster-nix").join("aster-nix-osdk-bin");
+            if let Ok(file) = std::fs::File::open(&qemu_log_path) {
+                crate::util::trace_panic_from_log(file, aster_bin_path);
+            }
+        }
     }
 }
 
@@ -104,6 +112,8 @@ pub enum OsdkSubcommand {
     Clippy(ForwardedArguments),
     #[command(about = "Build a package's documentation")]
     Doc(ForwardedArguments),
+    #[command(about = "Unwind the qemu log to extract kernel panics")]
+    Unwind,
 }
 
 #[derive(Debug, Parser)]
