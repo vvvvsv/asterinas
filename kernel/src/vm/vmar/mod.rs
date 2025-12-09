@@ -393,6 +393,18 @@ impl Vmar {
                 &mut rss_delta,
             )?
         } else {
+            // This is ensured by the `mremap` syscall implementation.
+            debug_assert!(new_size > old_size);
+
+            // Fast path if we can allocate a free region right after the old range.
+            if inner.alloc_free_region_exact(old_range.end, new_size - old_size).is_ok() {
+                let old_mapping_addr = inner.check_lies_in_single_mapping(old_addr, old_size)?;
+                let old_mapping = inner.remove(&old_mapping_addr).unwrap();
+                let new_mapping = old_mapping.enlarge(new_size - old_size);
+                inner.insert_try_merge(new_mapping);
+                return Ok(old_range.start);
+            }
+
             inner.alloc_free_region(new_size, PAGE_SIZE)?
         };
 
@@ -414,6 +426,7 @@ impl Vmar {
         inner.insert_try_merge(new_mapping.enlarge(new_size - old_size));
 
         let preempt_guard = disable_preempt();
+        warn!("mremap: remap from {:?} to {:?}", old_range, new_range);
         let total_range = old_range.start.min(new_range.start)..old_range.end.max(new_range.end);
         let vmspace = self.vm_space();
         let mut cursor = vmspace.cursor_mut(&preempt_guard, &total_range).unwrap();
