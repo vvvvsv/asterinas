@@ -1,0 +1,548 @@
+sh-5.2# nixos-rebuild test
+[    44.243] WARN : CLONE_SYSVSEM is not supported now
+GC Warning: pthread_getattr_np or pthread_attr_getstack failed for main thread
+[    57.926] WARN : PID 92: terminating on signal SIGKILL
+building Nix...
+[    58.149] WARN : CLONE_SYSVSEM is not supported now
+GC Warning: pthread_getattr_np or pthread_attr_getstack failed for main thread
+[    63.835] WARN : PID 97: terminating on signal SIGKILL
+[    63.948] WARN : CLONE_SYSVSEM is not supported now
+GC Warning: pthread_getattr_np or pthread_attr_getstack failed for main thread
+[    69.793] WARN : PID 99: terminating on signal SIGKILL
+[    69.889] WARN : CLONE_SYSVSEM is not supported now
+GC Warning: pthread_getattr_np or pthread_attr_getstack failed for main thread
+[    69.944] WARN : PID 101: terminating on signal SIGKILL
+building the system configuration...
+[    70.050] WARN : CLONE_SYSVSEM is not supported now
+GC Warning: pthread_getattr_np or pthread_attr_getstack failed for main thread
+[    87.777] WARN : mremap: remap from 232689664..253665280 to 943575040..964616192
+[    87.828] WARN : mremap: remap from 943575040..964616192 to 232689664..253796352
+[    87.881] WARN : mremap: remap from 232689664..253796352 to 943575040..964747264
+[    87.935] WARN : mremap: remap from 943575040..964747264 to 232689664..253927424
+[    87.988] WARN : mremap: remap from 232689664..253927424 to 943575040..964878336
+[    88.042] WARN : mremap: remap from 943575040..964878336 to 232689664..254058496
+[    88.095] WARN : mremap: remap from 232689664..254058496 to 943575040..965009408
+[    88.150] WARN : mremap: remap from 943575040..965009408 to 232689664..254189568
+[    88.204] WARN : mremap: remap from 232689664..254189568 to 943575040..965140480
+[    88.259] WARN : mremap: remap from 943575040..965140480 to 232689664..254320640
+[    88.320] WARN : mremap: remap from 232689664..254320640 to 943575040..965271552
+[    88.372] WARN : mremap: remap from 943575040..965271552 to 232689664..254451712
+[    88.426] WARN : mremap: remap from 232689664..254451712 to 943575040..965402624
+[    88.481] WARN : mremap: remap from 943575040..965402624 to 232689664..254582784
+[    88.536] WARN : mremap: remap from 232689664..254582784 to 943575040..965533696
+[    88.592] WARN : mremap: remap from 943575040..965533696 to 232689664..254713856
+[    88.646] WARN : mremap: remap from 232689664..254713856 to 943575040..965664768
+[    88.702] WARN : mremap: remap from 943575040..965664768 to 232689664..254844928
+[    88.757] WARN : mremap: remap from 232689664..254844928 to 943575040..965795840
+[    88.813] WARN : mremap: remap from 943575040..965795840 to 232689664..254976000
+[    88.869] WARN : mremap: remap from 232689664..254976000 to 943575040..965926912
+[    88.926] WARN : mremap: remap from 943575040..965926912 to 232689664..255107072
+[    88.982] WARN : mremap: remap from 232689664..255107072 to 943575040..966057984
+[    89.039] WARN : mremap: remap from 943575040..966057984 to 232689664..255238144
+[    89.095] WARN : mremap: remap from 232689664..255238144 to 943575040..966189056
+[    89.152] WARN : mremap: remap from 943575040..966189056 to 232689664..255369216
+[    89.215] WARN : mremap: remap from 232689664..255369216 to 943575040..966320128
+[    89.269] WARN : mremap: remap from 943575040..966320128 to 232689664..255500288
+[    89.326] WARN : mremap: remap from 232689664..255500288 to 943575040..966451200
+[    89.384] WARN : mremap: remap from 943575040..966451200 to 232689664..255631360
+[    89.441] WARN : mremap: remap from 232689664..255631360 to 943575040..966582272
+[    89.499] WARN : mremap: remap from 943575040..966582272 to 232689664..255762432
+[    89.555] WARN : mremap: remap from 232689664..255762432 to 943575040..966713344
+[    89.613] WARN : mremap: remap from 943575040..966713344 to 232689664..255893504
+[    89.671] WARN : mremap: remap from 232689664..255893504 to 943575040..966844416
+[    89.729] WARN : mremap: remap from 943575040..966844416 to 232689664..256024576
+[    89.786] WARN : mremap: remap from 232689664..256024576 to 943575040..966975488
+[    89.845] WARN : mremap: remap from 943575040..966975488 to 232689664..256155648
+[    89.903] WARN : mremap: remap from 232689664..256155648 to 943575040..967106560
+[    89.962] WARN : mremap: remap from 943575040..967106560 to 232689664..256286720
+[    90.020] WARN : mremap: remap from 232689664..256286720 to 943575040..967237632
+[    90.080] WARN : mremap: remap from 943575040..967237632 to 232689664..256417792
+[    90.145] WARN : mremap: remap from 232689664..256417792 to 943575040..967368704
+[    90.202] WARN : mremap: remap from 943575040..967368704 to 232689664..256548864
+[    90.261] WARN : mremap: remap from 232689664..256548864 to 943575040..967499776
+[    90.321] WARN : mremap: remap from 943575040..967499776 to 232689664..256679936
+[    90.380] WARN : mremap: remap from 232689664..256679936 to 943575040..967630848
+[    90.440] WARN : mremap: remap from 943575040..967630848 to 232689664..256811008
+[    90.500] WARN : mremap: remap from 232689664..256811008 to 943575040..967761920
+[    90.561] WARN : mremap: remap from 943575040..967761920 to 232689664..256942080
+[    90.621] WARN : mremap: remap from 232689664..256942080 to 943575040..967892992
+[    90.682] WARN : mremap: remap from 943575040..967892992 to 232689664..257073152
+[    90.742] WARN : mremap: remap from 232689664..257073152 to 943575040..968024064
+[    90.803] WARN : mremap: remap from 943575040..968024064 to 232689664..257204224
+[    90.863] WARN : mremap: remap from 232689664..257204224 to 943575040..968155136
+[    90.924] WARN : mremap: remap from 943575040..968155136 to 232689664..257335296
+[    90.985] WARN : mremap: remap from 232689664..257335296 to 943575040..968286208
+[    91.047] WARN : mremap: remap from 943575040..968286208 to 232689664..257466368
+[    91.108] WARN : mremap: remap from 232689664..257466368 to 943575040..968417280
+[    91.170] WARN : mremap: remap from 943575040..968417280 to 232689664..257597440
+[    91.231] WARN : mremap: remap from 232689664..257597440 to 943575040..968548352
+[    91.293] WARN : mremap: remap from 943575040..968548352 to 232689664..257728512
+[    91.361] WARN : mremap: remap from 232689664..257728512 to 943575040..968679424
+[    91.423] WARN : mremap: remap from 943575040..968679424 to 232689664..257859584
+[    91.485] WARN : mremap: remap from 232689664..257859584 to 943575040..968810496
+[    91.548] WARN : mremap: remap from 943575040..968810496 to 232689664..257990656
+[    91.610] WARN : mremap: remap from 232689664..257990656 to 943575040..968941568
+[    91.673] WARN : mremap: remap from 943575040..968941568 to 232689664..258121728
+[    91.734] WARN : mremap: remap from 232689664..258121728 to 943575040..969072640
+[    91.797] WARN : mremap: remap from 943575040..969072640 to 232689664..258252800
+[    91.858] WARN : mremap: remap from 232689664..258252800 to 943575040..969203712
+[    91.923] WARN : mremap: remap from 943575040..969203712 to 232689664..258383872
+[    91.986] WARN : mremap: remap from 232689664..258383872 to 943575040..969334784
+[    92.050] WARN : mremap: remap from 943575040..969334784 to 232689664..258514944
+[    92.113] WARN : mremap: remap from 232689664..258514944 to 943575040..969465856
+[    92.177] WARN : mremap: remap from 943575040..969465856 to 232689664..258646016
+[    92.240] WARN : mremap: remap from 232689664..258646016 to 943575040..969596928
+[    92.306] WARN : mremap: remap from 943575040..969596928 to 232689664..258777088
+[    92.370] WARN : mremap: remap from 232689664..258777088 to 943575040..969728000
+[    92.435] WARN : mremap: remap from 943575040..969728000 to 232689664..258908160
+[    92.499] WARN : mremap: remap from 232689664..258908160 to 943575040..969859072
+[    92.564] WARN : mremap: remap from 943575040..969859072 to 232689664..259039232
+[    92.628] WARN : mremap: remap from 232689664..259039232 to 943575040..969990144
+[    92.693] WARN : mremap: remap from 943575040..969990144 to 232689664..259170304
+[    92.758] WARN : mremap: remap from 232689664..259170304 to 943575040..970121216
+[    92.824] WARN : mremap: remap from 943575040..970121216 to 232689664..259301376
+[    92.889] WARN : mremap: remap from 232689664..259301376 to 943575040..970252288
+[    92.955] WARN : mremap: remap from 943575040..970252288 to 232689664..259432448
+[    93.019] WARN : mremap: remap from 232689664..259432448 to 943575040..970383360
+[    93.086] WARN : mremap: remap from 943575040..970383360 to 232689664..259563520
+[    93.151] WARN : mremap: remap from 232689664..259563520 to 943575040..970514432
+[    93.217] WARN : mremap: remap from 943575040..970514432 to 232689664..259694592
+[    93.283] WARN : mremap: remap from 232689664..259694592 to 943575040..970645504
+[    93.350] WARN : mremap: remap from 943575040..970645504 to 232689664..259825664
+[    93.416] WARN : mremap: remap from 232689664..259825664 to 943575040..970776576
+[    93.483] WARN : mremap: remap from 943575040..970776576 to 232689664..259956736
+[    93.549] WARN : mremap: remap from 232689664..259956736 to 943575040..970907648
+[    93.616] WARN : mremap: remap from 943575040..970907648 to 232689664..260087808
+[    93.682] WARN : mremap: remap from 232689664..260087808 to 943575040..971038720
+[    93.750] WARN : mremap: remap from 943575040..971038720 to 232689664..260218880
+[    93.817] WARN : mremap: remap from 232689664..260218880 to 943575040..971169792
+[    93.885] WARN : mremap: remap from 943575040..971169792 to 232689664..260349952
+[    93.952] WARN : mremap: remap from 232689664..260349952 to 943575040..971300864
+[    94.020] WARN : mremap: remap from 943575040..971300864 to 232689664..260481024
+[    94.087] WARN : mremap: remap from 232689664..260481024 to 943575040..971431936
+[    94.156] WARN : mremap: remap from 943575040..971431936 to 232689664..260612096
+[    94.224] WARN : mremap: remap from 232689664..260612096 to 943575040..971563008
+[    94.293] WARN : mremap: remap from 943575040..971563008 to 232689664..260743168
+[    94.361] WARN : mremap: remap from 232689664..260743168 to 943575040..971694080
+[    94.430] WARN : mremap: remap from 943575040..971694080 to 232689664..260874240
+[    94.498] WARN : mremap: remap from 232689664..260874240 to 943575040..971825152
+[    94.567] WARN : mremap: remap from 943575040..971825152 to 232689664..261005312
+[    94.636] WARN : mremap: remap from 232689664..261005312 to 943575040..971956224
+[    94.706] WARN : mremap: remap from 943575040..971956224 to 232689664..261136384
+[    94.775] WARN : mremap: remap from 232689664..261136384 to 943575040..972087296
+[    94.845] WARN : mremap: remap from 943575040..972087296 to 232689664..261267456
+[    94.914] WARN : mremap: remap from 232689664..261267456 to 943575040..972218368
+[    94.984] WARN : mremap: remap from 943575040..972218368 to 232689664..261398528
+[    95.054] WARN : mremap: remap from 232689664..261398528 to 943575040..972349440
+[    95.124] WARN : mremap: remap from 943575040..972349440 to 232689664..261529600
+[    95.201] WARN : mremap: remap from 232689664..261529600 to 943575040..972480512
+[    95.269] WARN : mremap: remap from 943575040..972480512 to 232689664..261660672
+[    95.339] WARN : mremap: remap from 232689664..261660672 to 943575040..972611584
+[    95.410] WARN : mremap: remap from 943575040..972611584 to 232689664..261791744
+[    95.480] WARN : mremap: remap from 232689664..261791744 to 943575040..972742656
+[    95.551] WARN : mremap: remap from 943575040..972742656 to 232689664..261922816
+[    95.632] WARN : mremap: remap from 232689664..261922816 to 943575040..972873728
+[    95.704] WARN : mremap: remap from 943575040..972873728 to 232689664..262053888
+[    95.775] WARN : mremap: remap from 232689664..262053888 to 943575040..973004800
+[    95.847] WARN : mremap: remap from 943575040..973004800 to 232689664..262184960
+[    95.918] WARN : mremap: remap from 232689664..262184960 to 943575040..973135872
+[    95.990] WARN : mremap: remap from 943575040..973135872 to 232689664..262316032
+[    96.061] WARN : mremap: remap from 232689664..262316032 to 943575040..973266944
+[    96.134] WARN : mremap: remap from 943575040..973266944 to 232689664..262447104
+[    96.205] WARN : mremap: remap from 232689664..262447104 to 943575040..973398016
+[    96.278] WARN : mremap: remap from 943575040..973398016 to 232689664..262578176
+[    96.350] WARN : mremap: remap from 232689664..262578176 to 943575040..973529088
+[    96.423] WARN : mremap: remap from 943575040..973529088 to 232689664..262709248
+[    96.495] WARN : mremap: remap from 232689664..262709248 to 943575040..973660160
+[    96.568] WARN : mremap: remap from 943575040..973660160 to 232689664..262840320
+[    96.641] WARN : mremap: remap from 232689664..262840320 to 943575040..973791232
+[    96.715] WARN : mremap: remap from 943575040..973791232 to 232689664..262971392
+[    96.788] WARN : mremap: remap from 232689664..262971392 to 943575040..973922304
+[    96.862] WARN : mremap: remap from 943575040..973922304 to 232689664..263102464
+[    96.935] WARN : mremap: remap from 232689664..263102464 to 943575040..974053376
+[    97.009] WARN : mremap: remap from 943575040..974053376 to 232689664..263233536
+[    97.082] WARN : mremap: remap from 232689664..263233536 to 943575040..974184448
+[    97.157] WARN : mremap: remap from 943575040..974184448 to 232689664..263364608
+[    97.231] WARN : mremap: remap from 232689664..263364608 to 943575040..974315520
+[    97.306] WARN : mremap: remap from 943575040..974315520 to 232689664..263495680
+[    97.380] WARN : mremap: remap from 232689664..263495680 to 943575040..974446592
+[    97.455] WARN : mremap: remap from 943575040..974446592 to 232689664..263626752
+[    97.529] WARN : mremap: remap from 232689664..263626752 to 943575040..974577664
+[    97.605] WARN : mremap: remap from 943575040..974577664 to 232689664..263757824
+[    97.680] WARN : mremap: remap from 232689664..263757824 to 943575040..974708736
+[    97.756] WARN : mremap: remap from 943575040..974708736 to 232689664..263888896
+[    97.831] WARN : mremap: remap from 232689664..263888896 to 943575040..974839808
+[    97.907] WARN : mremap: remap from 943575040..974839808 to 232689664..264019968
+[    97.983] WARN : mremap: remap from 232689664..264019968 to 943575040..974970880
+[    98.059] WARN : mremap: remap from 943575040..974970880 to 232689664..264151040
+[    98.134] WARN : mremap: remap from 232689664..264151040 to 943575040..975101952
+[    98.211] WARN : mremap: remap from 943575040..975101952 to 232689664..264282112
+[    98.287] WARN : mremap: remap from 232689664..264282112 to 943575040..975233024
+[    98.364] WARN : mremap: remap from 943575040..975233024 to 232689664..264413184
+[    98.440] WARN : mremap: remap from 232689664..264413184 to 943575040..975364096
+[    98.517] WARN : mremap: remap from 943575040..975364096 to 232689664..264544256
+[    98.594] WARN : mremap: remap from 232689664..264544256 to 943575040..975495168
+[    98.671] WARN : mremap: remap from 943575040..975495168 to 232689664..264675328
+[    98.748] WARN : mremap: remap from 232689664..264675328 to 943575040..975626240
+[    98.826] WARN : mremap: remap from 943575040..975626240 to 232689664..264806400
+[    98.903] WARN : mremap: remap from 232689664..264806400 to 943575040..975757312
+[    98.981] WARN : mremap: remap from 943575040..975757312 to 232689664..264937472
+[    99.058] WARN : mremap: remap from 232689664..264937472 to 943575040..975888384
+[    99.136] WARN : mremap: remap from 943575040..975888384 to 232689664..265068544
+[    99.214] WARN : mremap: remap from 232689664..265068544 to 943575040..976019456
+[    99.293] WARN : mremap: remap from 943575040..976019456 to 232689664..265199616
+[    99.371] WARN : mremap: remap from 232689664..265199616 to 943575040..976150528
+[    99.450] WARN : mremap: remap from 943575040..976150528 to 232689664..265330688
+[    99.535] WARN : mremap: remap from 232689664..265330688 to 943575040..976281600
+[    99.611] WARN : mremap: remap from 943575040..976281600 to 232689664..265461760
+[    99.690] WARN : mremap: remap from 232689664..265461760 to 943575040..976412672
+[    99.769] WARN : mremap: remap from 943575040..976412672 to 232689664..265592832
+[    99.848] WARN : mremap: remap from 232689664..265592832 to 943575040..976543744
+[    99.928] WARN : mremap: remap from 943575040..976543744 to 232689664..265723904
+[   100.007] WARN : mremap: remap from 232689664..265723904 to 943575040..976674816
+[   100.087] WARN : mremap: remap from 943575040..976674816 to 232689664..265854976
+[   100.166] WARN : mremap: remap from 232689664..265854976 to 943575040..976805888
+[   100.247] WARN : mremap: remap from 943575040..976805888 to 232689664..265986048
+[   100.326] WARN : mremap: remap from 232689664..265986048 to 943575040..976936960
+[   100.407] WARN : mremap: remap from 943575040..976936960 to 232689664..266117120
+[   100.494] WARN : mremap: remap from 232689664..266117120 to 943575040..977068032
+[   100.575] WARN : mremap: remap from 943575040..977068032 to 232689664..266248192
+[   143.936] WARN : CLONE_SYSVSEM is not supported now
+[   143.944] WARN : CLONE_SYSVSEM is not supported now
+[   143.954] WARN : CLONE_SYSVSEM is not supported now
+[   143.964] WARN : CLONE_SYSVSEM is not supported now
+[   143.974] WARN : CLONE_SYSVSEM is not supported now
+[   143.984] WARN : CLONE_SYSVSEM is not supported now
+[   143.994] WARN : CLONE_SYSVSEM is not supported now
+[   144.004] WARN : CLONE_SYSVSEM is not supported now
+[   144.014] WARN : CLONE_SYSVSEM is not supported now
+[   144.024] WARN : CLONE_SYSVSEM is not supported now
+[   144.034] WARN : CLONE_SYSVSEM is not supported now
+[   144.044] WARN : CLONE_SYSVSEM is not supported now
+[   144.054] WARN : CLONE_SYSVSEM is not supported now
+[   144.064] WARN : CLONE_SYSVSEM is not supported now
+[   144.074] WARN : CLONE_SYSVSEM is not supported now
+[   144.084] WARN : CLONE_SYSVSEM is not supported now
+[   144.094] WARN : CLONE_SYSVSEM is not supported now
+[   144.104] WARN : CLONE_SYSVSEM is not supported now
+[   144.114] WARN : CLONE_SYSVSEM is not supported now
+[   144.124] WARN : CLONE_SYSVSEM is not supported now
+[   144.134] WARN : CLONE_SYSVSEM is not supported now
+[   144.144] WARN : CLONE_SYSVSEM is not supported now
+[   144.154] WARN : CLONE_SYSVSEM is not supported now
+[   144.164] WARN : CLONE_SYSVSEM is not supported now
+[   144.441] WARN : CLONE_SYSVSEM is not supported now
+[   144.443] WARN : CLONE_SYSVSEM is not supported now
+[   144.450] WARN : unsupported flags: MSG_NOSIGNAL
+[   149.452] WARN : unsupported flags: MSG_NOSIGNAL
+[   149.722] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.063] WARN : unsupported flags: MSG_NOSIGNAL
+[   150.359] WARN : unsupported flags: MSG_NOSIGNAL
+[   150.360] WARN : unsupported flags: MSG_NOSIGNAL
+[   150.545] WARN : unsupported flags: MSG_NOSIGNAL
+[   150.558] WARN : unsupported flags: MSG_NOSIGNAL
+[   150.753] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.754] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.755] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.756] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.757] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.758] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.759] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.760] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.761] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.762] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.763] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.764] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.765] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.766] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.767] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.768] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.769] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.770] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.771] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.772] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.773] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.774] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.775] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   150.776] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+these 9 derivations will be built:
+  /nix/store/8f9rpri27sc5cwlagxis1ddhvlqm50zs-system-path.drv
+  /nix/store/2v9n0bdjglp5hdwd91b73axm79114hd7-dbus-1.drv
+  /nix/store/y4wqhs28dcd199fzz7m568gklgmb8wxa-X-Restart-Triggers-dbus.drv
+  /nix/store/2kggivvlk9h3g0yq80lwyqsnvj88gxmz-unit-dbus.service.drv
+  /nix/store/8bd55fi9f16wyzm08hlkj6sxxw5jvxnj-unit-dbus.service.drv
+  /nix/store/45sbgdhvhg400bj52jq54wqmw1wypxr3-system-units.drv
+  /nix/store/i85l2sy9vdcwhzayqqgnjndygvdr0c8r-user-units.drv
+  /nix/store/7s8mqf4y3yf4cxl9rnrz2vjc9j39psza-etc.drv
+  /nix/store/f94f1plc2rribzdgxf6dfh7zzv6gx651-nixos-system-asterinas-25.05.813221.9a7b80b6f82a.drv
+this path will be fetched (0.05 MiB download, 0.22 MiB unpacked):
+  /nix/store/na5dnb0l6rjkzrbld3xn4188dd8nknhh-hello-2.12.1
+[   150.795] WARN : CLONE_SYSVSEM is not supported now
+[   150.803] WARN : CLONE_SYSVSEM is not supported now
+[   150.813] WARN : CLONE_SYSVSEM is not supported now
+[   150.823] WARN : CLONE_SYSVSEM is not supported now
+[   150.833] WARN : CLONE_SYSVSEM is not supported now
+[   150.843] WARN : CLONE_SYSVSEM is not supported now
+[   150.853] WARN : CLONE_SYSVSEM is not supported now
+[   150.863] WARN : CLONE_SYSVSEM is not supported now
+[   150.875] WARN : CLONE_SYSVSEM is not supported now
+[   150.885] WARN : CLONE_SYSVSEM is not supported now
+[   150.895] WARN : CLONE_SYSVSEM is not supported now
+[   150.905] WARN : CLONE_SYSVSEM is not supported now
+[   150.915] WARN : CLONE_SYSVSEM is not supported now
+[   150.925] WARN : CLONE_SYSVSEM is not supported now
+[   150.935] WARN : CLONE_SYSVSEM is not supported now
+[   150.945] WARN : CLONE_SYSVSEM is not supported now
+[   150.955] WARN : CLONE_SYSVSEM is not supported now
+[   150.965] WARN : CLONE_SYSVSEM is not supported now
+[   150.975] WARN : CLONE_SYSVSEM is not supported now
+[   150.985] WARN : CLONE_SYSVSEM is not supported now
+[   150.995] WARN : CLONE_SYSVSEM is not supported now
+[   151.005] WARN : CLONE_SYSVSEM is not supported now
+[   151.015] WARN : CLONE_SYSVSEM is not supported now
+[   151.025] WARN : CLONE_SYSVSEM is not supported now
+[   151.110] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.111] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.112] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.113] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.114] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.115] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.116] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.117] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.118] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.119] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.120] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.121] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.122] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.123] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.124] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.125] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.126] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.127] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.128] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.129] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.130] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.131] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.132] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   151.140] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   154.861] WARN : CLONE_SYSVSEM is not supported now
+copying path '/nix/store/na5dnb0l6rjkzrbld3xn4188dd8nknhh-hello-2.12.1' from 'https://cache.nixos.org'...
+[   154.890] WARN : unsupported flags: MSG_NOSIGNAL
+[   155.076] WARN : unsupported flags: MSG_NOSIGNAL
+[   155.444] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   156.418] WARN : Unimplemented syscall number: 135
+[   157.296] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   157.300] WARN : Unimplemented syscall number: 326
+[   181.105] WARN : mremap: remap from 140737487417344..140737487560704 to 140737487560704..140737487769600
+[   181.106] WARN : mremap: remap from 140737487560704..140737487769600 to 140737487769600..140737488044032
+[   181.108] WARN : mremap: remap from 140737487769600..140737488044032 to 2191360..2531328
+[   181.110] WARN : mremap: remap from 2191360..2531328 to 140737487417344..140737487822848
+[   181.113] WARN : mremap: remap from 140737487417344..140737487822848 to 140737487822848..140737488293888
+[   181.115] WARN : mremap: remap from 140737487822848..140737488293888 to 2191360..2727936
+[   181.118] WARN : mremap: remap from 2191360..2727936 to 140737487417344..140737488019456
+[   181.121] WARN : mremap: remap from 140737488019456..140737488187392 to 2191360..2523136
+[   181.125] WARN : mremap: remap from 2191360..2523136 to 2523136..3182592
+[   181.159] WARN : mremap: remap from 140737488130048..140737488273408 to 2191360..2400256
+[   181.161] WARN : mremap: remap from 2191360..2400256 to 2400256..2674688
+[   181.165] WARN : mremap: remap from 2400256..2674688 to 2674688..3014656
+[   181.169] WARN : mremap: remap from 2674688..3014656 to 2191360..2596864
+[   181.173] WARN : mremap: remap from 2191360..2596864 to 2596864..3067904
+[   181.177] WARN : mremap: remap from 2596864..3067904 to 3067904..3604480
+[   181.181] WARN : mremap: remap from 3067904..3604480 to 2191360..2793472
+[   181.188] WARN : mremap: remap from 2191360..2793472 to 2793472..3461120
+[   181.193] WARN : mremap: remap from 2793472..3461120 to 3461120..4194304
+[   181.200] WARN : mremap: remap from 3461120..4194304 to 2191360..2990080
+[   181.202] ERROR: Uncaught panic:
+        assertion failed: self.level < self.guard_level
+        at /root/asterinas/ostd/src/mm/page_table/cursor/mod.rs:320
+        on CPU 0 by thread Some(Thread { task: (Weak), data: Any { .. }, is_exited: false, cpu_affinity: AtomicIdSet { bits: [1], phantom: PhantomData<ostd::cpu::id::CpuId> }, sched_attr: SchedAttr { policy: SchedPolicyState { kind: AtomicSchedPolicyKind(2), policy: UnsafeCell { .. } }, last_cpu: AtomicCpuId(0), real_time: RealTimeAttr { prio: 99, time_slice: 33735180 }, fair: FairAttr { weight: 1024, pending_weight: 0, vruntime: 160629457275 } } })
+Printing stack trace:
+   1: fn 0xffffffff8896bf00 - pc 0xffffffff8896bf4a / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0be6d0;
+
+   2: fn 0xffffffff88350890 - pc 0xffffffff88351039 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0be720;
+
+   3: fn 0xffffffff88350880 - pc 0xffffffff8835088a / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0beb30;
+
+   4: fn 0xffffffff8804b000 - pc 0xffffffff8804b00a / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0beb40;
+
+   5: fn 0xffffffff88ad9120 - pc 0xffffffff88ad9164 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0beb50;
+
+   6: fn 0xffffffff88ad91d0 - pc 0xffffffff88ad9210 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0beb90;
+
+   7: fn 0xffffffff88995a80 - pc 0xffffffff88995b38 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0bec00;
+
+   8: fn 0xffffffff889957d0 - pc 0xffffffff889958d4 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0bec40;
+
+   9: fn 0xffffffff889966b0 - pc 0xffffffff889966ca / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0becc0;
+
+  10: fn 0xffffffff8895dda0 - pc 0xffffffff8895ddc1 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0bece0;
+
+  11: fn 0xffffffff8838d270 - pc 0xffffffff8838e9dd / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0bed70;
+
+  12: fn 0xffffffff880c3340 - pc 0xffffffff880c39e2 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0bfc00;
+
+  13: fn 0xffffffff880c3160 - pc 0xffffffff880c3230 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0bff10;
+
+  14: fn 0xffffffff884610d0 - pc 0xffffffff88468dbc / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0c0020;
+
+  15: fn 0xffffffff883ccf60 - pc 0xffffffff883ccff1 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d34d0;
+
+  16: fn 0xffffffff885b5e00 - pc 0xffffffff885b664e / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3650;
+
+  17: fn 0xffffffff885b6830 - pc 0xffffffff885b688e / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3b00;
+
+  18: fn 0xffffffff883fe0d0 - pc 0xffffffff883fe0fe / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3cb0;
+
+  19: fn 0xffffffff883fdfa0 - pc 0xffffffff883fdfe6 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3ce0;
+
+  20: fn 0xffffffff886ea690 - pc 0xffffffff886ea6bc / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3d50;
+
+  21: fn 0xffffffff884b2630 - pc 0xffffffff884b266d / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3d90;
+
+  22: fn 0xffffffff885b68a0 - pc 0xffffffff885b68c7 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3f40;
+
+  23: fn 0xffffffff880ca1f0 - pc 0xffffffff880ca20d / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3f80;
+
+  24: fn 0xffffffff8895ad60 - pc 0xffffffff8895ad85 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3fa0;
+
+  25: fn 0xffffffff889d9870 - pc 0xffffffff889d98f4 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d3fd0;
+
+  26: fn 0xffffffff889d092d - pc 0xffffffff889d0936 / registers:
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d4000;
+
+
+     rax 0xffffffff88e9b458; rdx  0x100000000000008; rcx 0xffffffff88e9b458; rbx                0x0;
+     rsi 0xffffdfffff0be650; rdi 0xffffffff88990f71; rbp                0x0; rsp 0xffffdfffff0d4008;
+
+ake: *** [Makefile:301: run] Error 65
+root@avalon:~/asterinas# cargo osdk unwind
+[OSDK] The kernel seems panicked. Parsing stack trace for source lines:
+(  1) ostd::panic::print_stack_trace
+          at /root/asterinas/ostd/src/panic.rs:112
+(  2) aster_nix::thread::oops::panic_handler
+          at /root/asterinas/kernel/src/thread/oops.rs:130
+(  3) __ostd_panic_handler
+          at ??:?
+(  4) rust_begin_unwind
+          at 5z5tvo27oq41mmvaod48l8n9e:?
+(  5) core::panicking::panic_fmt
+          at ??:?
+(  6) core::panicking::panic_nounwind
+          at /root/.rustup/toolchains/nightly-2025-02-01-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panicking.rs:217
+(  7) ostd::mm::page_table::cursor::Cursor<C>::pop_level
+          at ??:?
+(  8) ostd::mm::page_table::cursor::Cursor<C>::jump
+          at /root/asterinas/ostd/src/mm/page_table/cursor/mod.rs:297
+(  9) ostd::mm::page_table::cursor::CursorMut<C>::jump
+          at /root/asterinas/ostd/src/mm/page_table/cursor/mod.rs:408
+( 10) ostd::mm::vm_space::CursorMut::jump
+          at /root/asterinas/ostd/src/mm/vm_space.rs:350
+( 11) aster_nix::vm::vmar::Vmar::remap
+          at /root/asterinas/kernel/src/vm/vmar/mod.rs:436
+( 12) aster_nix::syscall::mremap::do_sys_mremap
+          at /root/asterinas/kernel/src/syscall/mremap.rs:64
+( 13) aster_nix::syscall::mremap::sys_mremap
+          at /root/asterinas/kernel/src/syscall/mremap.rs:17
+( 14) aster_nix::syscall::arch::syscall_dispatch
+          at /root/asterinas/kernel/src/syscall/mod.rs:243
+( 15) aster_nix::syscall::handle_syscall
+          at /root/asterinas/kernel/src/syscall/mod.rs:375
+( 16) aster_nix::thread::task::create_new_user_task::{{closure}}
+          at /root/asterinas/kernel/src/thread/task.rs:94
+( 17) aster_nix::thread::task::create_new_user_task::{{closure}}
+          at /root/asterinas/kernel/src/thread/task.rs:125
+( 18) unwinding::panicking::catch_unwind::do_call
+          at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unwinding-0.2.5/src/panicking.rs:56
+( 19) unwinding::panicking::catch_unwind
+          at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unwinding-0.2.5/src/panicking.rs:42
+( 20) unwinding::panic::catch_unwind
+          at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unwinding-0.2.5/src/panic.rs:87
+( 21) aster_nix::thread::oops::catch_panics_as_oops
+          at /root/asterinas/kernel/src/thread/oops.rs:55
+( 22) aster_nix::thread::task::create_new_user_task::{{closure}}
+          at /root/asterinas/kernel/src/thread/task.rs:130
+( 23) core::ops::function::FnOnce::call_once{{vtable.shim}}
+          at /root/.rustup/toolchains/nightly-2025-02-01-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:250
+( 24) <alloc::boxed::Box<F,A> as core::ops::function::FnOnce<Args>>::call_once
+          at /root/.rustup/toolchains/nightly-2025-02-01-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/boxed.rs:2016
+( 25) kernel_task_entry
+          at /root/asterinas/ostd/src/task/mod.rs:195
+( 26) kernel_task_entry_wrapper
+          at ??:?
