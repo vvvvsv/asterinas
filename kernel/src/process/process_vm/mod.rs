@@ -103,6 +103,10 @@ impl ProcessVm {
         &self.init_stack
     }
 
+    pub fn init_stack_top(&self) -> usize {
+        self.init_stack.pos()
+    }
+
     /// Returns the user heap.
     pub fn heap(&self) -> &Heap {
         &self.heap
