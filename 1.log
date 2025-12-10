@@ -1,0 +1,373 @@
+[root@asterinas:~/for_rebuild]# nixos-rebuild test
+[   386.750] WARN : CLONE_SYSVSEM is not supported now
+[   399.033] WARN : PID 1224: terminating on signal SIGKILL
+building Nix...
+[   399.335] WARN : CLONE_SYSVSEM is not supported now
+[   410.644] WARN : PID 1229: terminating on signal SIGKILL
+[   411.188] WARN : CLONE_SYSVSEM is not supported now
+[   411.647] WARN : PID 1231: terminating on signal SIGKILL
+[   411.940] WARN : CLONE_SYSVSEM is not supported now
+[   412.005] WARN : PID 1233: terminating on signal SIGKILL
+building the system configuration...
+[   412.298] WARN : CLONE_SYSVSEM is not supported now
+[   519.785] WARN : CLONE_SYSVSEM is not supported now
+[   519.797] WARN : CLONE_SYSVSEM is not supported now
+[   519.807] WARN : CLONE_SYSVSEM is not supported now
+[   519.817] WARN : CLONE_SYSVSEM is not supported now
+[   519.825] WARN : CLONE_SYSVSEM is not supported now
+[   519.835] WARN : CLONE_SYSVSEM is not supported now
+[   519.845] WARN : CLONE_SYSVSEM is not supported now
+[   519.854] WARN : CLONE_SYSVSEM is not supported now
+[   519.862] WARN : CLONE_SYSVSEM is not supported now
+[   519.872] WARN : CLONE_SYSVSEM is not supported now
+[   519.882] WARN : CLONE_SYSVSEM is not supported now
+[   519.893] WARN : CLONE_SYSVSEM is not supported now
+[   519.903] WARN : CLONE_SYSVSEM is not supported now
+[   519.913] WARN : CLONE_SYSVSEM is not supported now
+[   519.924] WARN : CLONE_SYSVSEM is not supported now
+[   519.934] WARN : CLONE_SYSVSEM is not supported now
+[   519.951] WARN : CLONE_SYSVSEM is not supported now
+[   519.959] WARN : CLONE_SYSVSEM is not supported now
+[   519.969] WARN : CLONE_SYSVSEM is not supported now
+[   519.988] WARN : CLONE_SYSVSEM is not supported now
+[   520.004] WARN : CLONE_SYSVSEM is not supported now
+[   520.020] WARN : CLONE_SYSVSEM is not supported now
+[   520.036] WARN : CLONE_SYSVSEM is not supported now
+[   520.051] WARN : CLONE_SYSVSEM is not supported now
+[   520.217] WARN : CLONE_SYSVSEM is not supported now
+[   520.230] WARN : CLONE_SYSVSEM is not supported now
+[   520.234] WARN : unsupported flags: MSG_NOSIGNAL
+[   525.236] WARN : unsupported flags: MSG_NOSIGNAL
+[   530.238] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   530.244] WARN : CLONE_SYSVSEM is not supported now
+warning: error: unable to download 'https://cache.nixos.org/7bzcswp68xfk2x17fmqbdrybbwcjy0kq.narinfo': Could not resolve hostname (6) Could not resolve host: cache.nixos.org; retrying in -2147483648 ms
+[   530.248] WARN : unsupported flags: MSG_NOSIGNAL
+[   535.250] WARN : unsupported flags: MSG_NOSIGNAL
+[   535.428] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   535.651] WARN : unsupported flags: MSG_NOSIGNAL
+[   535.860] WARN : unsupported flags: MSG_NOSIGNAL
+[   535.861] WARN : unsupported flags: MSG_NOSIGNAL
+[   535.862] WARN : unsupported flags: MSG_NOSIGNAL
+[   536.054] WARN : unsupported flags: MSG_NOSIGNAL
+[   536.068] WARN : unsupported flags: MSG_NOSIGNAL
+[   536.069] WARN : unsupported flags: MSG_NOSIGNAL
+[   536.271] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.272] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.273] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.274] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.275] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.276] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.277] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.278] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.279] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.280] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.281] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.282] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.283] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.284] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.285] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.286] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.287] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.288] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.289] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.290] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.291] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.292] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.293] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.294] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+these 9 derivations will be built:
+  /nix/store/cmdp7yx5czaikffriif17g7rsa7vd0ks-system-path.drv
+  /nix/store/ax3qkmjchrvvglc49cfl0x65m6x0ggxk-dbus-1.drv
+  /nix/store/g7rj5b47l7hi36xdrsg66syqqahh8x1k-X-Restart-Triggers-dbus.drv
+  /nix/store/f08ffci39z12qg1av6fhj3c2605ii6pm-unit-dbus.service.drv
+  /nix/store/gyil4flpad8z2bmkz0rdln92kdsskqfz-unit-dbus.service.drv
+  /nix/store/kb7dzqlp16g634qpiiqdr0zywyjrrc8k-user-units.drv
+  /nix/store/r2a19x7wn3kbpkrw48w5hqxaf73f866q-system-units.drv
+  /nix/store/mwxjdjzn0x802qa63kvjpxk1k4ylyggn-etc.drv
+  /nix/store/iv6wbcwj9m6nx8b668yf6nn6f20xzykx-nixos-system-asterinas-25.05pre-git.drv
+these 4 paths will be fetched (1.64 MiB download, 7.67 MiB unpacked):
+  /nix/store/mq3fyynvvg5s86icqdi6j57074svhgzl-gcc-14.2.1.20250322-info
+  /nix/store/y0cm45kcs4rnf0y5ys9066l1rn7p3b0i-gcc-14.2.1.20250322-man
+  /nix/store/7bzcswp68xfk2x17fmqbdrybbwcjy0kq-gcc-wrapper-14.2.1.20250322-info
+  /nix/store/kbykzp8wk3anb8ym760yf5m28nqz2k9n-gcc-wrapper-14.2.1.20250322-man
+[   536.308] WARN : CLONE_SYSVSEM is not supported now
+[   536.309] WARN : CLONE_SYSVSEM is not supported now
+[   536.314] WARN : CLONE_SYSVSEM is not supported now
+[   536.319] WARN : CLONE_SYSVSEM is not supported now
+[   536.324] WARN : CLONE_SYSVSEM is not supported now
+[   536.330] WARN : CLONE_SYSVSEM is not supported now
+[   536.333] WARN : CLONE_SYSVSEM is not supported now
+[   536.339] WARN : CLONE_SYSVSEM is not supported now
+[   536.345] WARN : CLONE_SYSVSEM is not supported now
+[   536.348] WARN : CLONE_SYSVSEM is not supported now
+[   536.353] WARN : CLONE_SYSVSEM is not supported now
+[   536.358] WARN : CLONE_SYSVSEM is not supported now
+[   536.364] WARN : CLONE_SYSVSEM is not supported now
+[   536.370] WARN : CLONE_SYSVSEM is not supported now
+[   536.376] WARN : CLONE_SYSVSEM is not supported now
+[   536.379] WARN : CLONE_SYSVSEM is not supported now
+[   536.384] WARN : CLONE_SYSVSEM is not supported now
+[   536.390] WARN : CLONE_SYSVSEM is not supported now
+[   536.396] WARN : CLONE_SYSVSEM is not supported now
+[   536.399] WARN : CLONE_SYSVSEM is not supported now
+[   536.404] WARN : CLONE_SYSVSEM is not supported now
+[   536.410] WARN : CLONE_SYSVSEM is not supported now
+[   536.413] WARN : CLONE_SYSVSEM is not supported now
+[   536.419] WARN : CLONE_SYSVSEM is not supported now
+[   536.470] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.471] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.472] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.473] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.474] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.475] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.476] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.477] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.478] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.479] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.480] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.481] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.482] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.483] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.484] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.485] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.486] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.487] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.488] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.489] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.490] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.491] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.492] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.495] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   536.835] WARN : CLONE_SYSVSEM is not supported now
+copying path '/nix/store/mq3fyynvvg5s86icqdi6j57074svhgzl-gcc-14.2.1.20250322-info' from 'https://cache.nixos.org'...
+[   536.853] WARN : CLONE_SYSVSEM is not supported now
+copying path '/nix/store/y0cm45kcs4rnf0y5ys9066l1rn7p3b0i-gcc-14.2.1.20250322-man' from 'https://cache.nixos.org'...
+[   536.907] WARN : unsupported flags: MSG_NOSIGNAL
+[   536.915] WARN : unsupported flags: MSG_NOSIGNAL
+[   537.101] WARN : unsupported flags: MSG_NOSIGNAL
+[   537.150] WARN : unsupported flags: MSG_NOSIGNAL
+[   538.150] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   538.159] WARN : CLONE_SYSVSEM is not supported now
+copying path '/nix/store/kbykzp8wk3anb8ym760yf5m28nqz2k9n-gcc-wrapper-14.2.1.20250322-man' from 'https://cache.nixos.org'...
+[   538.228] WARN : unsupported flags: MSG_NOSIGNAL
+[   538.471] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   538.601] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   538.605] WARN : CLONE_SYSVSEM is not supported now
+copying path '/nix/store/7bzcswp68xfk2x17fmqbdrybbwcjy0kq-gcc-wrapper-14.2.1.20250322-info' from 'https://cache.nixos.org'...
+[   538.660] WARN : unsupported flags: MSG_NOSIGNAL
+[   538.891] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   539.679] WARN : Unimplemented syscall number: 135
+[   540.504] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   540.507] WARN : Unimplemented syscall number: 326
+building '/nix/store/cmdp7yx5czaikffriif17g7rsa7vd0ks-system-path.drv'...
+created 6396 symlinks in user environment
+[   568.233] WARN : PID 1302: terminating on signal SIGBUS
+/tmp/nix-build-system-path.drv-0/.attr-0l2nkwhif96f51f4amnlf414lhl4rv9vh8iffyp431v6s28gsr90: line 11:  1302 Bus error               /nix/store/8fllvjsbppblf26qgis7nwxmw1qrspsf-texinfo-7.2/bin/install-info $i $out/share/info/dir
+error: builder for '/nix/store/cmdp7yx5czaikffriif17g7rsa7vd0ks-system-path.drv' failed with exit code 135
+error: 1 dependencies of derivation '/nix/store/ax3qkmjchrvvglc49cfl0x65m6x0ggxk-dbus-1.drv' failed to build
+error: 1 dependencies of derivation '/nix/store/g7rj5b47l7hi36xdrsg66syqqahh8x1k-X-Restart-Triggers-dbus.drv' failed to build
+error: 1 dependencies of derivation '/nix/store/f08ffci39z12qg1av6fhj3c2605ii6pm-unit-dbus.service.drv' failed to build
+error: 1 dependencies of derivation '/nix/store/gyil4flpad8z2bmkz0rdln92kdsskqfz-unit-dbus.service.drv' failed to build
+error: 1 dependencies of derivation '/nix/store/r2a19x7wn3kbpkrw48w5hqxaf73f866q-system-units.drv' failed to build
+error: 1 dependencies of derivation '/nix/store/kb7dzqlp16g634qpiiqdr0zywyjrrc8k-user-units.drv' failed to build
+error: 4 dependencies of derivation '/nix/store/mwxjdjzn0x802qa63kvjpxk1k4ylyggn-etc.drv' failed to build
+error: 2 dependencies of derivation '/nix/store/iv6wbcwj9m6nx8b668yf6nn6f20xzykx-nixos-system-asterinas-25.05pre-git.drv' failed to build
+[   569.766] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   569.775] WARN : unsupported flags: MSG_NOSIGNAL
+[   569.782] WARN : unsupported flags: MSG_NOSIGNAL
+[   569.830] WARN : PID 1237: terminating on signal SIGKILL
+
+[root@asterinas:~/for_rebuild]# nixos-rebuild test
+[   629.663] WARN : CLONE_SYSVSEM is not supported now
+[   642.152] WARN : PID 1307: terminating on signal SIGKILL
+building Nix...
+[   642.436] WARN : CLONE_SYSVSEM is not supported now
+[   653.733] WARN : PID 1312: terminating on signal SIGKILL
+[   654.275] WARN : CLONE_SYSVSEM is not supported now
+[   654.716] WARN : PID 1314: terminating on signal SIGKILL
+[   654.972] WARN : CLONE_SYSVSEM is not supported now
+[   655.035] WARN : PID 1316: terminating on signal SIGKILL
+building the system configuration...
+[   655.309] WARN : CLONE_SYSVSEM is not supported now
+[   705.202] WARN : CLONE_SYSVSEM is not supported now
+[   705.209] WARN : CLONE_SYSVSEM is not supported now
+[   705.215] WARN : CLONE_SYSVSEM is not supported now
+[   705.221] WARN : CLONE_SYSVSEM is not supported now
+[   705.224] WARN : CLONE_SYSVSEM is not supported now
+[   705.229] WARN : CLONE_SYSVSEM is not supported now
+[   705.235] WARN : CLONE_SYSVSEM is not supported now
+[   705.241] WARN : CLONE_SYSVSEM is not supported now
+[   705.244] WARN : CLONE_SYSVSEM is not supported now
+[   705.249] WARN : CLONE_SYSVSEM is not supported now
+[   705.255] WARN : CLONE_SYSVSEM is not supported now
+[   705.260] WARN : CLONE_SYSVSEM is not supported now
+[   705.265] WARN : CLONE_SYSVSEM is not supported now
+[   705.272] WARN : CLONE_SYSVSEM is not supported now
+[   705.278] WARN : CLONE_SYSVSEM is not supported now
+[   705.281] WARN : CLONE_SYSVSEM is not supported now
+[   705.290] WARN : CLONE_SYSVSEM is not supported now
+[   705.293] WARN : CLONE_SYSVSEM is not supported now
+[   705.299] WARN : CLONE_SYSVSEM is not supported now
+[   705.302] WARN : CLONE_SYSVSEM is not supported now
+[   705.306] WARN : CLONE_SYSVSEM is not supported now
+[   705.314] WARN : CLONE_SYSVSEM is not supported now
+[   705.317] WARN : CLONE_SYSVSEM is not supported now
+[   705.322] WARN : CLONE_SYSVSEM is not supported now
+[   705.387] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.388] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.389] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.390] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.391] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.392] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.393] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.394] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.395] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.396] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.397] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.398] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.399] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.400] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.401] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.402] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.403] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.404] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.405] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.406] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.407] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.408] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.409] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.411] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+these 9 derivations will be built:
+  /nix/store/cmdp7yx5czaikffriif17g7rsa7vd0ks-system-path.drv
+  /nix/store/ax3qkmjchrvvglc49cfl0x65m6x0ggxk-dbus-1.drv
+  /nix/store/g7rj5b47l7hi36xdrsg66syqqahh8x1k-X-Restart-Triggers-dbus.drv
+  /nix/store/f08ffci39z12qg1av6fhj3c2605ii6pm-unit-dbus.service.drv
+  /nix/store/gyil4flpad8z2bmkz0rdln92kdsskqfz-unit-dbus.service.drv
+  /nix/store/kb7dzqlp16g634qpiiqdr0zywyjrrc8k-user-units.drv
+  /nix/store/r2a19x7wn3kbpkrw48w5hqxaf73f866q-system-units.drv
+  /nix/store/mwxjdjzn0x802qa63kvjpxk1k4ylyggn-etc.drv
+  /nix/store/iv6wbcwj9m6nx8b668yf6nn6f20xzykx-nixos-system-asterinas-25.05pre-git.drv
+[   705.431] WARN : CLONE_SYSVSEM is not supported now
+[   705.435] WARN : CLONE_SYSVSEM is not supported now
+[   705.438] WARN : CLONE_SYSVSEM is not supported now
+[   705.443] WARN : CLONE_SYSVSEM is not supported now
+[   705.449] WARN : CLONE_SYSVSEM is not supported now
+[   705.452] WARN : CLONE_SYSVSEM is not supported now
+[   705.458] WARN : CLONE_SYSVSEM is not supported now
+[   705.463] WARN : CLONE_SYSVSEM is not supported now
+[   705.468] WARN : CLONE_SYSVSEM is not supported now
+[   705.475] WARN : CLONE_SYSVSEM is not supported now
+[   705.478] WARN : CLONE_SYSVSEM is not supported now
+[   705.483] WARN : CLONE_SYSVSEM is not supported now
+[   705.488] WARN : CLONE_SYSVSEM is not supported now
+[   705.495] WARN : CLONE_SYSVSEM is not supported now
+[   705.504] WARN : CLONE_SYSVSEM is not supported now
+[   705.505] WARN : CLONE_SYSVSEM is not supported now
+[   705.512] WARN : CLONE_SYSVSEM is not supported now
+[   705.515] WARN : CLONE_SYSVSEM is not supported now
+[   705.521] WARN : CLONE_SYSVSEM is not supported now
+[   705.527] WARN : CLONE_SYSVSEM is not supported now
+[   705.530] WARN : CLONE_SYSVSEM is not supported now
+[   705.536] WARN : CLONE_SYSVSEM is not supported now
+[   705.540] WARN : CLONE_SYSVSEM is not supported now
+[   705.546] WARN : CLONE_SYSVSEM is not supported now
+[   705.606] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.607] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.608] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.609] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.610] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.611] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.612] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.613] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.614] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.615] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.616] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.617] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.618] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.619] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.620] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.621] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.622] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.623] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.624] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.625] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.626] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.627] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.628] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   705.631] WARN : MADV_DONTNEED isn't implemented, do nothing for now.
+[   707.839] WARN : Unimplemented syscall number: 135
+[   708.915] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   708.920] WARN : Unimplemented syscall number: 326
+building '/nix/store/cmdp7yx5czaikffriif17g7rsa7vd0ks-system-path.drv'...
+created 6396 symlinks in user environment
+[   754.412] WARN : Unimplemented syscall number: 135
+[   755.553] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   755.560] WARN : Unimplemented syscall number: 326
+building '/nix/store/ax3qkmjchrvvglc49cfl0x65m6x0ggxk-dbus-1.drv'...
+[   756.678] WARN : Unimplemented syscall number: 135
+[   757.741] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   757.746] WARN : Unimplemented syscall number: 326
+[   757.852] WARN : unsupported flags: NOREPLACE
+[   757.951] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   757.957] WARN : Unimplemented syscall number: 326
+building '/nix/store/g7rj5b47l7hi36xdrsg66syqqahh8x1k-X-Restart-Triggers-dbus.drv'...
+[   759.080] WARN : Unimplemented syscall number: 135
+[   759.895] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   759.905] WARN : Unimplemented syscall number: 326
+[   760.039] WARN : unsupported flags: NOREPLACE
+[   760.046] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   760.049] WARN : Unimplemented syscall number: 326
+building '/nix/store/f08ffci39z12qg1av6fhj3c2605ii6pm-unit-dbus.service.drv'...
+[   761.145] WARN : Unimplemented syscall number: 135
+[   762.009] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   762.016] WARN : Unimplemented syscall number: 326
+[   762.153] WARN : unsupported flags: NOREPLACE
+[   762.156] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   762.165] WARN : Unimplemented syscall number: 326
+building '/nix/store/gyil4flpad8z2bmkz0rdln92kdsskqfz-unit-dbus.service.drv'...
+[   763.384] WARN : Unimplemented syscall number: 135
+[   764.262] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   764.269] WARN : Unimplemented syscall number: 326
+building '/nix/store/kb7dzqlp16g634qpiiqdr0zywyjrrc8k-user-units.drv'...
+[   766.392] WARN : Unimplemented syscall number: 135
+[   767.464] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   767.471] WARN : Unimplemented syscall number: 326
+building '/nix/store/r2a19x7wn3kbpkrw48w5hqxaf73f866q-system-units.drv'...
+[   782.980] WARN : Unimplemented syscall number: 135
+[   784.055] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   784.062] WARN : Unimplemented syscall number: 326
+building '/nix/store/mwxjdjzn0x802qa63kvjpxk1k4ylyggn-etc.drv'...
+[   792.964] WARN : Unimplemented syscall number: 135
+[   793.836] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   793.843] WARN : Unimplemented syscall number: 326
+[   793.944] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   793.951] WARN : Unimplemented syscall number: 326
+[   794.117] WARN : unsupported flags: NOREPLACE
+[   794.478] WARN : unsupported flags: NOREPLACE
+building '/nix/store/iv6wbcwj9m6nx8b668yf6nn6f20xzykx-nixos-system-asterinas-25.05pre-git.drv'...
+[   794.744] WARN : POSIX_FADV_SEQUENTIAL is ignored
+[   794.753] WARN : Unimplemented syscall number: 326
+[   796.403] WARN : PID 1320: terminating on signal SIGKILL
+Failed to connect to system scope bus via local transport: No such file or directory
+do_system_switch: Bypass systemd 1
+activating the configuration...
+[   823.059] WARN : unsupported flags: NOREPLACE
+[   823.560] WARN : Unimplemented syscall number: 428
+[   823.564] WARN : setting file system flags is not implemented
+[   823.607] WARN : Unimplemented syscall number: 428
+[   823.611] WARN : setting file system flags is not implemented
+[   823.649] WARN : Unimplemented syscall number: 428
+[   823.653] WARN : setting file system flags is not implemented
+[   823.697] WARN : Unimplemented syscall number: 428
+[   823.701] WARN : setting file system flags is not implemented
+[   823.742] WARN : Unimplemented syscall number: 428
+[   823.746] WARN : setting file system flags is not implemented
+[   823.790] WARN : Unimplemented syscall number: 428
+[   823.794] WARN : setting file system flags is not implemented
+[   823.835] WARN : Unimplemented syscall number: 428
+[   823.844] WARN : setting file system flags is not implemented
+setting up /etc...
+[   824.517] WARN : unsupported flags: NOREPLACE
+do_system_switch: Bypass systemd 2
+[   824.583] WARN : unsupported flags: MSG_NOSIGNAL
+Done. The new configuration is /nix/store/hw1ff31i72cs4pqnl15l56pww2a8g8bv-nixos-system-asterinas-25.05pre-git
