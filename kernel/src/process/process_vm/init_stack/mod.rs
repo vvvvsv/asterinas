@@ -214,6 +214,10 @@ impl InitStack {
         }
     }
 
+    pub(super) fn initial_top(&self) -> usize {
+        self.initial_top
+    }
+
     fn is_initialized(&self) -> bool {
         self.pos() != self.initial_top
     }
@@ -222,7 +226,7 @@ impl InitStack {
         self.pos.store(self.initial_top, Ordering::Relaxed);
     }
 
-    fn pos(&self) -> Vaddr {
+    pub fn pos(&self) -> Vaddr {
         self.pos.load(Ordering::Relaxed)
     }
 }
