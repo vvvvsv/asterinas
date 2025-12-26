@@ -136,6 +136,13 @@ impl SockFs {
         PseudoFs::singleton(&SOCKFS, "sockfs", SOCKFS_MAGIC)
     }
 
+    /// Creates a pseudo `Path` for a socket.
+    pub fn new_path(socket_inode: Arc<PseudoInode>) -> Path {
+        Path::new_pseudo(Self::mount_node().clone(), socket_inode, |inode| {
+            format!("socket:[{}]", inode.ino())
+        })
+    }
+
     /// Returns the pseudo mount node of the socket file system.
     pub fn mount_node() -> &'static Arc<Mount> {
         static SOCKFS_MOUNT: Once<Arc<Mount>> = Once::new();
