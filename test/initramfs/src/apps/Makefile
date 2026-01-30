@@ -13,39 +13,7 @@ TEST_BUILD_DIR ?= $(INITRAMFS)/test
 
 # These test apps are sorted by name
 TEST_APPS := \
-	alarm \
-	capability \
-	chroot \
-	clone3 \
-	cpu_affinity \
-	devfs \
-	epoll \
-	eventfd2 \
-	execve \
-	exit \
-	ext2 \
-	fdatasync \
-	file_io \
-	fork_c \
-	getcpu \
-	getpid \
-	hello_pie \
-	inotify \
-	itimer \
-	mmap \
-	mongoose \
-	namespace \
-	network \
-	pipe \
-	prctl \
-	process \
-	procfs \
-	pseudofs \
-	pthread \
-	pty \
-	sched \
-	shm \
-	vsock \
+	breakpoint \
 
 # TODO: Refactor those tests for target CPU arch using C macro-based conditional compilation.
 ifeq ($(HOST_PLATFORM), x86_64-linux)
