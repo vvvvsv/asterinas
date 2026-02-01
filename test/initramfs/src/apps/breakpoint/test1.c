@@ -8,6 +8,8 @@
 #include <elf.h>
 #include <errno.h>
 #include <sys/syscall.h>
+#include <sys/ptrace.h>
+#include <sys/user.h>
 
 #define TARGET "/test/breakpoint/test2"
 #define FUNC_NAME "hello_world"
@@ -61,6 +63,34 @@ unsigned long find_text_base(pid_t pid)
 
     fclose(fp);
     fprintf(stderr, "text base not found\n");
+    exit(1);
+}
+
+unsigned long get_text_p_vaddr(const char *file)
+{
+    int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        die("open elf");
+
+    Elf64_Ehdr eh;
+    read_full(fd, &eh, sizeof(eh));
+
+    lseek(fd, eh.e_phoff, SEEK_SET);
+
+    Elf64_Phdr ph;
+
+    for (int i = 0; i < eh.e_phnum; i++) {
+        read_full(fd, &ph, sizeof(ph));
+
+        if (ph.p_type == PT_LOAD &&
+            (ph.p_flags & PF_X)) {
+
+            close(fd);
+            return ph.p_vaddr;
+        }
+    }
+
+    fprintf(stderr, "text PT_LOAD not found\n");
     exit(1);
 }
 
@@ -236,23 +266,52 @@ void write_child_byte(pid_t pid,
     close(fd);
 }
 
+void print_wait_status(int status)
+{
+    if (WIFEXITED(status)) {
+        printf("child exited, code=%d\n", WEXITSTATUS(status));
+    }
+    else if (WIFSIGNALED(status)) {
+        printf("child killed by signal %d%s\n",
+               WTERMSIG(status),
+               WCOREDUMP(status) ? " (core dumped)" : "");
+    }
+    else if (WIFSTOPPED(status)) {
+        int sig = WSTOPSIG(status);
+        printf("child stopped by signal %d", sig);
+        if (sig == SIGTRAP) {
+            printf(" (trap stop)");
+        }
+        printf("\n");
+    }
+    else if (WIFCONTINUED(status)) {
+        printf("child continued\n");
+    }
+    else {
+        printf("unknown status: 0x%x\n", status);
+    }
+}
+
 /* ----------------------------- */
 int main(void)
 {
     pid_t pid = fork();
     if (pid == 0) {
+        ptrace(PTRACE_TRACEME, 0, 0, 0);
         execl(TARGET, TARGET, NULL);
         die("exec");
     }
 
-    sleep(1);
+    int status;
+    waitpid(pid, &status, 0);
+    print_wait_status(status);
 
-    unsigned long base = find_text_base(pid);
+    unsigned long text_base = find_text_base(pid);
     struct sym_info s = find_symbol_offset(TARGET, FUNC_NAME);
 
     unsigned long runtime_addr;
     if (s.is_pie)
-        runtime_addr = base + s.value;
+        runtime_addr = text_base - get_text_p_vaddr(TARGET) + s.value;
     else
         runtime_addr = s.value;
 
@@ -261,7 +320,7 @@ int main(void)
 
     printf("[+] ELF type    : %s\n",
            s.is_pie ? "PIE" : "NON-PIE");
-    printf("[+] text base   : 0x%lx\n", base);
+    printf("[+] text base   : 0x%lx\n", text_base);
     printf("[+] sym value   : 0x%lx\n", s.value);
     printf("[+] runtime addr: 0x%lx\n", runtime_addr);
     printf("[+] file offset : 0x%lx\n", file_off);
@@ -285,50 +344,46 @@ int main(void)
     printf("\n");
 
     if (memcmp(mem1, mem2, READ_SIZE) == 0)
-        printf("\nMATCH ✔\n");
-    else
-        printf("\nDIFFER ✘\n");
+        printf("\nMATCH\n");
+    else {
+        printf("\nDIFFER\n");
+        die("memory and file differ");
+    }
 
-    /* 记录原字节 */
     unsigned char orig = mem1[0];
     printf("[+] original byte at 0x%lx: %02x\n",
            runtime_addr, orig);
 
-    /* 写 INT3 */
     write_child_byte(pid, runtime_addr, 0xCC);
-
     printf("[+] breakpoint installed\n");
 
-    while(1) {
-        /* 等待子进程 */
-        int status;
-        waitpid(pid, &status, WUNTRACED);
-        printf("[+] waitpid returned\n");
+    ptrace(PTRACE_CONT, pid, 0, 0);
 
-        if (WIFSTOPPED(status)) {
-            printf("[+] child stopped at breakpoint\n");
-        } else {
-            printf("[+] child exited\n");
+    while(1) {
+        int status;
+        waitpid(pid, &status, 0);
+        print_wait_status(status);
+        if (WIFEXITED(status))
             break;
-        }
+
+        struct user_regs_struct regs;
+        ptrace(PTRACE_GETREGS, pid, 0, &regs);
+
+        printf("[+] hit breakpoint, RIP=0x%llx\n", regs.rip);
+
+        regs.rip -= 1;
+        ptrace(PTRACE_SETREGS, pid, 0, &regs);
 
         write_child_byte(pid, runtime_addr, orig);
 
-        // 写入 RIP=RIP-1, TF=true
-        syscall(468, pid, 0);
-        kill(pid, SIGCONT);
+        ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
 
-        waitpid(pid, &status, WUNTRACED);
-
-        if (WIFSTOPPED(status)) {
-            printf("[+] child stopped after singlestep\n");
-        }
+        waitpid(pid, &status, 0);
+        print_wait_status(status);
 
         write_child_byte(pid, runtime_addr, 0xCC);
 
-        // 写入 TF=false
-        syscall(468, pid, 1);
-        kill(pid, SIGCONT);
+        ptrace(PTRACE_CONT, pid, 0, 0);
     }
 
     return 0;
