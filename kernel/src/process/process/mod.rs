@@ -323,7 +323,7 @@ impl Process {
         self.parent.pid() == 0
     }
 
-    pub(super) fn children(&self) -> &Mutex<Option<BTreeMap<Pid, Arc<Process>>>> {
+    pub fn children(&self) -> &Mutex<Option<BTreeMap<Pid, Arc<Process>>>> {
         &self.children
     }
 

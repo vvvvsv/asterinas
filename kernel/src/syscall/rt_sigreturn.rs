@@ -13,7 +13,7 @@ use crate::{
     prelude::*, process::signal::c_types::ucontext_t, syscall::sigaltstack::set_new_stack,
 };
 
-pub fn sys_rt_sigreturn(ctx: &Context, user_ctx: &mut UserContext) -> Result<SyscallReturn> {
+pub fn sys_rt_sigreturn(ctx: &Context, user_ctx:&mut UserContext) -> Result<SyscallReturn> {
     let Context {
         thread_local,
         posix_thread,

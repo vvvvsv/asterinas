@@ -2,7 +2,10 @@
 
 //! User mode.
 
+use alloc::sync::Arc;
+
 use crate::arch::{cpu::context::UserContext, trap::TrapFrame};
+use crate::sync::{Mutex, MutexGuard};
 
 /// Specific architectures need to implement this trait. This should only used in [`UserMode`]
 ///
@@ -36,6 +39,14 @@ pub trait UserContextApi {
 
     /// Gets the stack pointer
     fn stack_pointer(&self) -> usize;
+
+    /// Sets the TF (trap flag) in the CPU flags register
+    #[cfg(target_arch = "x86_64")]
+    fn set_tf(&mut self);
+
+    /// Unsets the TF (trap flag) in the CPU flags register
+    #[cfg(target_arch = "x86_64")]
+    fn unset_tf(&mut self);
 }
 
 /// Code execution in the user mode.
@@ -44,7 +55,7 @@ pub trait UserContextApi {
 /// space safely.
 ///
 /// Here is a sample code on how to use `UserMode`.
-///  
+///
 /// ```no_run
 /// use ostd::task::Task;
 ///
@@ -60,18 +71,18 @@ pub trait UserContextApi {
 ///     todo!("handle the event, e.g., syscall");
 /// }
 /// ```
-pub struct UserMode {
-    context: UserContext,
+pub struct UserMode<'a> {
+    context: MutexGuard<'a, UserContext>,
 }
 
 // An instance of `UserMode` is bound to the current task. So it must not be sent to other tasks.
-impl !Send for UserMode {}
+impl !Send for UserMode<'_> {}
 // Note that implementing `!Sync` is unnecessary
 // because entering the user space via `UserMode` requires taking a mutable reference.
 
-impl UserMode {
+impl<'a> UserMode<'a> {
     /// Creates a new `UserMode`.
-    pub fn new(context: UserContext) -> Self {
+    pub fn new(context: MutexGuard<'a, UserContext>) -> Self {
         Self { context }
     }
 
@@ -95,12 +106,12 @@ impl UserMode {
         self.context.execute(has_kernel_event)
     }
 
-    /// Returns an immutable reference the user-mode CPU context.
+    /// Gets the user context of this `UserMode`.
     pub fn context(&self) -> &UserContext {
         &self.context
     }
 
-    /// Returns a mutable reference the user-mode CPU context.
+    /// Gets the user context of this `UserMode` mutably.
     pub fn context_mut(&mut self) -> &mut UserContext {
         &mut self.context
     }

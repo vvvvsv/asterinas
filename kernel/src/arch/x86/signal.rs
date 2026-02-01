@@ -37,6 +37,8 @@ impl From<&CpuException> for FaultSignal {
                 let addr = Some(raw_page_fault_info.addr as u64);
                 (SIGSEGV, code, addr)
             }
+            CpuException::BreakPoint => (SIGSTOP, TRAP_BRKPT, None), // (SIGTRAP, TRAP_BRKPT) if ptraced, (SIGTRAP, SI_KERNEL) if not ptraced.
+            CpuException::Debug => (SIGSTOP, TRAP_TRACE, None),
             e => panic!("{e:?} cannot be handled via signals ({exception:?})"),
         };
 
