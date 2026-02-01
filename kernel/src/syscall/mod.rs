@@ -114,6 +114,8 @@ mod removexattr;
 mod rename;
 mod rmdir;
 mod rt_sigaction;
+#[cfg(target_arch = "x86_64")]
+mod test_ptrace;
 mod rt_sigpending;
 mod rt_sigprocmask;
 mod rt_sigreturn;

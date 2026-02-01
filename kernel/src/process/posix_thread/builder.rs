@@ -28,7 +28,7 @@ pub struct PosixThreadBuilder {
     // The essential part
     tid: Tid,
     thread_name: ThreadName,
-    user_ctx: Box<UserContext>,
+    user_ctx: Arc<Mutex<UserContext>>,
     process: Weak<Process>,
     credentials: Credentials,
 
@@ -51,7 +51,7 @@ impl PosixThreadBuilder {
     pub fn new(
         tid: Tid,
         thread_name: ThreadName,
-        user_ctx: Box<UserContext>,
+        user_ctx: Arc<Mutex<UserContext>>,
         credentials: Credentials,
     ) -> Self {
         Self {
@@ -187,6 +187,7 @@ impl PosixThreadBuilder {
                     ns_proxy: Mutex::new(Some(ns_proxy.clone())),
                     timer_slack_ns: AtomicU64::new(default_timer_slack_ns),
                     default_timer_slack_ns: AtomicU64::new(default_timer_slack_ns),
+                    user_ctx: user_ctx.clone(),
                 }
             };
 

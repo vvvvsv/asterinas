@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <elf.h>
 #include <errno.h>
+#include <sys/syscall.h>
 
 #define TARGET "/test/breakpoint/test2"
 #define FUNC_NAME "hello_world"
@@ -217,6 +218,25 @@ void read_file_bytes(const char *file,
 }
 
 /* ----------------------------- */
+/* write child memory */
+void write_child_byte(pid_t pid,
+    unsigned long addr,
+    unsigned char val)
+{
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/mem", pid);
+
+    int fd = open(path, O_RDWR);
+    if (fd < 0)
+    die("open mem");
+
+    if (pwrite(fd, &val, 1, addr) != 1)
+    die("pwrite");
+
+    close(fd);
+}
+
+/* ----------------------------- */
 int main(void)
 {
     pid_t pid = fork();
@@ -269,6 +289,47 @@ int main(void)
     else
         printf("\nDIFFER ✘\n");
 
-    wait(NULL);
+    /* 记录原字节 */
+    unsigned char orig = mem1[0];
+    printf("[+] original byte at 0x%lx: %02x\n",
+           runtime_addr, orig);
+
+    /* 写 INT3 */
+    write_child_byte(pid, runtime_addr, 0xCC);
+
+    printf("[+] breakpoint installed\n");
+
+    while(1) {
+        /* 等待子进程 */
+        int status;
+        waitpid(pid, &status, WUNTRACED);
+        printf("[+] waitpid returned\n");
+
+        if (WIFSTOPPED(status)) {
+            printf("[+] child stopped at breakpoint\n");
+        } else {
+            printf("[+] child exited\n");
+            break;
+        }
+
+        write_child_byte(pid, runtime_addr, orig);
+
+        // 写入 RIP=RIP-1, TF=true
+        syscall(468, pid, 0);
+        kill(pid, SIGCONT);
+
+        waitpid(pid, &status, WUNTRACED);
+
+        if (WIFSTOPPED(status)) {
+            printf("[+] child stopped after singlestep\n");
+        }
+
+        write_child_byte(pid, runtime_addr, 0xCC);
+
+        // 写入 TF=false
+        syscall(468, pid, 1);
+        kill(pid, SIGCONT);
+    }
+
     return 0;
 }

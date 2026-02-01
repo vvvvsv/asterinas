@@ -368,13 +368,13 @@ fn clone_child_task(
             .switch_to_mnt_ns(child_ns_proxy.mnt_ns())?;
     }
 
-    let child_user_ctx = Box::new(clone_user_ctx(
+    let child_user_ctx = Arc::new(Mutex::new(clone_user_ctx(
         parent_context,
         clone_args.stack,
         clone_args.stack_size,
         clone_args.tls,
         clone_flags,
-    ));
+    )));
 
     // Inherit sigmask from current thread
     let sig_mask = posix_thread.sig_mask().load(Ordering::Relaxed).into();
@@ -440,13 +440,13 @@ fn clone_child_process(
     let child_vmar = clone_vmar(thread_local.vmar().borrow().as_ref().unwrap(), clone_flags)?;
 
     // Clone the user context
-    let child_user_ctx = Box::new(clone_user_ctx(
+    let child_user_ctx = Arc::new(Mutex::new(clone_user_ctx(
         parent_context,
         clone_args.stack,
         clone_args.stack_size,
         clone_args.tls,
         clone_flags,
-    ));
+    )));
 
     // Clone the file table
     let child_file_table = clone_files(thread_local.borrow_file_table().unwrap(), clone_flags);

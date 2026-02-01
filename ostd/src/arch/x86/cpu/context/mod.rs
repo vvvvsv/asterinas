@@ -448,6 +448,14 @@ impl UserContextApi for UserContext {
     fn instruction_pointer(&self) -> usize {
         self.rip()
     }
+
+    fn set_tf(&mut self) {
+        self.set_rflags(RFlags::from_bits_truncate(self.rflags() as u64).union(RFlags::TRAP_FLAG).bits() as usize);
+    }
+
+    fn unset_tf(&mut self) {
+        self.set_rflags(RFlags::from_bits_truncate(self.rflags() as u64).difference(RFlags::TRAP_FLAG).bits() as usize);
+    }
 }
 
 macro_rules! cpu_context_impl_getter_setter {

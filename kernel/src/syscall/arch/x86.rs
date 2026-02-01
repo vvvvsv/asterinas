@@ -164,6 +164,7 @@ use super::{
     timerfd_create::sys_timerfd_create,
     timerfd_gettime::sys_timerfd_gettime,
     timerfd_settime::sys_timerfd_settime,
+    test_ptrace::sys_test_ptrace,
     truncate::{sys_ftruncate, sys_truncate},
     umask::sys_umask,
     umount::sys_umount,
@@ -412,4 +413,5 @@ impl_syscall_nums_and_dispatch_fn! {
     SYS_FACCESSAT2 = 439       => sys_faccessat2(args[..4]);
     SYS_EPOLL_PWAIT2 = 441     => sys_epoll_pwait2(args[..5]);
     SYS_FCHMODAT2 = 452        => sys_fchmodat2(args[..4]);
+    SYS_TESTPTRACE = 468       => sys_test_ptrace(args[..2]);
 }

@@ -24,12 +24,12 @@ use crate::{
 
 /// create new task with userspace and parent process
 pub fn create_new_user_task(
-    user_ctx: Box<UserContext>,
+    user_ctx: Arc<Mutex<UserContext>>,
     thread_ref: Arc<Thread>,
     thread_local: ThreadLocal,
     is_init_process: bool,
 ) -> Task {
-    let user_task_entry = move |user_ctx: UserContext| {
+    let user_task_entry = move |user_ctx: Arc<Mutex<UserContext>>| {
         let current_task = Task::current().unwrap();
         let current_thread = current_task.as_thread().unwrap();
         let current_posix_thread = current_thread.as_posix_thread().unwrap();
@@ -38,19 +38,22 @@ pub fn create_new_user_task(
         let (stop_waiter, _) = Waiter::new_pair();
 
         let mut user_mode = UserMode::new(user_ctx);
-        user_mode.context_mut().activate_tls_pointer();
-        debug!(
-            "[Task entry] rip = 0x{:x}",
-            user_mode.context().instruction_pointer()
-        );
-        debug!(
-            "[Task entry] rsp = 0x{:x}",
-            user_mode.context().stack_pointer()
-        );
-        debug!(
-            "[Task entry] rax = 0x{:x}",
-            user_mode.context().syscall_ret()
-        );
+        {
+            let mut user_ctx_locked = user_mode.lock();
+            user_ctx_locked.context().activate_tls_pointer();
+            debug!(
+                "[Task entry] rip = 0x{:x}",
+                user_ctx_locked.context().instruction_pointer()
+            );
+            debug!(
+                "[Task entry] rsp = 0x{:x}",
+                user_ctx_locked.context().stack_pointer()
+            );
+            debug!(
+                "[Task entry] rax = 0x{:x}",
+                user_ctx_locked.context().syscall_ret()
+            );
+        }
 
         // The `clone` syscall may require the child process to write its thread TID to the
         // specified address. Make sure that the store operation completes before we return control
@@ -79,20 +82,23 @@ pub fn create_new_user_task(
         while !current_thread.is_exited() {
             // Execute the user code
             ctx.thread_local.fpu().activate();
+            // lock
             let return_reason = user_mode.execute(has_kernel_event_fn);
+            // unlock
             ctx.thread_local.fpu().deactivate();
 
             // Handle user events
-            let user_ctx = user_mode.context_mut();
             let mut pre_syscall_ret = None;
             match return_reason {
                 ReturnReason::UserException => {
-                    let exception = user_ctx.take_exception().unwrap();
-                    handle_exception(&ctx, user_ctx, exception)
+                    let mut user_ctx_locked = user_mode.lock();
+                    let exception = user_ctx_locked.context().take_exception().unwrap();
+                    handle_exception(&ctx, user_ctx_locked.context(), exception)
                 }
                 ReturnReason::UserSyscall => {
-                    pre_syscall_ret = Some(user_ctx.syscall_ret());
-                    handle_syscall(&ctx, user_ctx);
+                    let mut user_ctx_locked = user_mode.lock();
+                    pre_syscall_ret = Some(user_ctx_locked.context().syscall_ret());
+                    handle_syscall(&ctx, user_ctx_locked.context());
                 }
                 ReturnReason::KernelEvent => {}
             };
@@ -103,7 +109,7 @@ pub fn create_new_user_task(
             }
 
             // Handle signals
-            handle_pending_signal(user_ctx, &ctx, pre_syscall_ret);
+            handle_pending_signal(user_mode.lock().context(), &ctx, pre_syscall_ret);
 
             // Handle signals while the thread is stopped
             // FIXME: Currently, we handle all signals when the process is stopped.
@@ -118,12 +124,12 @@ pub fn create_new_user_task(
                     // We currently do not support ptrace.
                     PauseReason::StopBySignal,
                 );
-                handle_pending_signal(user_ctx, &ctx, None);
+                handle_pending_signal(user_mode.lock().context(), &ctx, None);
             }
         }
     };
 
-    let user_task_func = move || user_task_entry(*user_ctx);
+    let user_task_func = move || user_task_entry(user_ctx);
 
     TaskOptions::new(move || {
         // TODO: If a kernel "oops" is caught, we should kill the entire

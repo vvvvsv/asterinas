@@ -4,8 +4,7 @@ use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 use aster_rights::{ReadDupOp, ReadOp, WriteOp};
 use ostd::{
-    sync::{RoArc, RwMutexReadGuard, Waker},
-    task::Task,
+    arch::cpu::context::UserContext, sync::{RoArc, RwMutexReadGuard, Waker}, task::Task
 };
 
 use super::{
@@ -91,9 +90,15 @@ pub struct PosixThread {
     timer_slack_ns: AtomicU64,
     /// The default timer slack value for this thread.
     default_timer_slack_ns: AtomicU64,
+
+    user_ctx: Arc<Mutex<UserContext>>,
 }
 
 impl PosixThread {
+    pub fn user_ctx(&self) -> &Mutex<UserContext> {
+        &self.user_ctx
+    }
+
     pub fn process(&self) -> Arc<Process> {
         self.process.upgrade().unwrap()
     }

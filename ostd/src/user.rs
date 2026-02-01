@@ -2,7 +2,10 @@
 
 //! User mode.
 
+use alloc::sync::Arc;
+
 use crate::arch::{cpu::context::UserContext, trap::TrapFrame};
+use crate::sync::{Mutex, MutexGuard};
 
 /// Specific architectures need to implement this trait. This should only used in [`UserMode`]
 ///
@@ -36,6 +39,14 @@ pub trait UserContextApi {
 
     /// Gets the stack pointer
     fn stack_pointer(&self) -> usize;
+
+    /// Sets the TF (trap flag) in the CPU flags register
+    #[cfg(target_arch = "x86_64")]
+    fn set_tf(&mut self);
+
+    /// Unsets the TF (trap flag) in the CPU flags register
+    #[cfg(target_arch = "x86_64")]
+    fn unset_tf(&mut self);
 }
 
 /// Code execution in the user mode.
@@ -44,7 +55,7 @@ pub trait UserContextApi {
 /// space safely.
 ///
 /// Here is a sample code on how to use `UserMode`.
-///  
+///
 /// ```no_run
 /// use ostd::task::Task;
 ///
@@ -61,7 +72,7 @@ pub trait UserContextApi {
 /// }
 /// ```
 pub struct UserMode {
-    context: UserContext,
+    context: Arc<Mutex<UserContext>>,
 }
 
 // An instance of `UserMode` is bound to the current task. So it must not be sent to other tasks.
@@ -71,7 +82,7 @@ impl !Send for UserMode {}
 
 impl UserMode {
     /// Creates a new `UserMode`.
-    pub fn new(context: UserContext) -> Self {
+    pub fn new(context: Arc<Mutex<UserContext>>) -> Self {
         Self { context }
     }
 
@@ -92,16 +103,25 @@ impl UserMode {
         F: FnMut() -> bool,
     {
         crate::task::atomic_mode::might_sleep();
-        self.context.execute(has_kernel_event)
+        self.context.lock().execute(has_kernel_event)
     }
 
-    /// Returns an immutable reference the user-mode CPU context.
-    pub fn context(&self) -> &UserContext {
-        &self.context
+    /// Locks the user mode context for direct access.
+    pub fn lock(&self) -> LockedUserMode<'_> {
+        LockedUserMode {
+            context: self.context.lock(),
+        }
     }
+}
 
-    /// Returns a mutable reference the user-mode CPU context.
-    pub fn context_mut(&mut self) -> &mut UserContext {
+/// A locked user mode context for direct access.
+pub struct LockedUserMode<'a> {
+    context: MutexGuard<'a, UserContext>,
+}
+
+impl LockedUserMode<'_> {
+    /// Gets a reference to the inner user context.
+    pub fn context(&mut self) -> &mut UserContext {
         &mut self.context
     }
 }
