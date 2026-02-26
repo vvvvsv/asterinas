@@ -17,7 +17,9 @@ use crate::{
     prelude::*,
     process::{
         ContextUnshareAdminApi, Credentials, Process, pid_table,
-        posix_thread::{ContextPthreadAdminApi, ThreadLocal, ThreadName, sigkill_other_threads},
+        posix_thread::{
+            AsPosixThread, ContextPthreadAdminApi, ThreadLocal, ThreadName, sigkill_other_threads,
+        },
         process_vm::{MAX_LEN_STRING_ARG, MAX_NR_STRING_ARGS, ProcessVm},
         program_loader::{ProgramToLoad, elf::ElfLoadInfo},
         signal::{
@@ -252,6 +254,12 @@ fn make_current_main_thread(ctx: &Context) {
 
     let thread = pid_table.take_thread(old_tid).unwrap();
     pid_table.replace_thread(pid, &thread);
+    drop(pid_table);
+
+    if let Some(tracer) = ctx.posix_thread.tracer() {
+        let tracer = tracer.as_posix_thread().unwrap();
+        tracer.update_tracee_tid(old_tid, pid);
+    }
 }
 
 fn set_cpu_context(
