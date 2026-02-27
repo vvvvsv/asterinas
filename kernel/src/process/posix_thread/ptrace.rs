@@ -12,6 +12,7 @@ use crate::{
         PauseReason,
         c_types::siginfo_t,
         constants::SIGCHLD,
+        sig_num::SigNum,
         signals::{Signal, user::UserSignal},
     },
     thread::{Thread, Tid},
@@ -63,6 +64,11 @@ impl PosixThread {
             PtraceStopResult::NotTraced(signal)
         }
     }
+
+    /// Gets and clears the ptrace-stop status changes for the `wait` syscall.
+    pub(in crate::process) fn wait_ptrace_stopped(&self) -> Option<SigNum> {
+        self.tracee_status.get().and_then(|status| status.wait())
+    }
 }
 
 impl PosixThread {
@@ -87,7 +93,7 @@ impl PosixThread {
     }
 
     /// Returns the tracee map of this thread if it is a tracer.
-    pub(super) fn tracees(&self) -> Option<&Mutex<HashMap<Tid, Arc<Thread>>>> {
+    pub(in crate::process) fn tracees(&self) -> Option<&Mutex<HashMap<Tid, Arc<Thread>>>> {
         self.tracees.get()
     }
 }
@@ -166,6 +172,18 @@ impl TraceeStatus {
 
     fn is_ptrace_stopped(&self) -> bool {
         self.is_stopped.load(Ordering::Relaxed)
+    }
+
+    fn wait(&self) -> Option<SigNum> {
+        // Hold the lock first to avoid race conditions.
+        let mut state = self.state.lock();
+
+        if let Some(siginfo) = state.unwaited_siginfo.take() {
+            let sig_num = (siginfo.si_signo as u8).try_into().unwrap();
+            Some(sig_num)
+        } else {
+            None
+        }
     }
 }
 
