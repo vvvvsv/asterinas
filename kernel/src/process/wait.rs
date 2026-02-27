@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
+use hashbrown::HashMap;
+
 use super::{
     ExitCode, Pid, Process,
     process_filter::ProcessFilter,
@@ -8,9 +10,12 @@ use super::{
 use crate::{
     prelude::*,
     process::{
-        ReapedChildrenStats, Uid, pid_table, posix_thread::AsPosixThread, signal::sig_num::SigNum,
+        ReapedChildrenStats, Uid, pid_table,
+        posix_thread::{AsPosixThread, PosixThread},
+        signal::sig_num::SigNum,
         status::StopWaitStatus,
     },
+    thread::{Thread, Tid},
     time::clocks::ProfClock,
 };
 
@@ -30,17 +35,6 @@ bitflags! {
 
 impl WaitOptions {
     pub fn check(&self) -> Result<()> {
-        // FIXME: The syscall `waitid` allows using WNOWAIT with
-        // WSTOPPED or WCONTINUED
-        if self.intersects(WaitOptions::WSTOPPED | WaitOptions::WCONTINUED)
-            && self.contains(WaitOptions::WNOWAIT)
-        {
-            return_errno_with_message!(
-                Errno::EINVAL,
-                "WNOWAIT cannot be used toghther with WSTOPPED or WCONTINUED"
-            );
-        }
-
         let supported_args = WaitOptions::WNOHANG
             | WaitOptions::WSTOPPED
             | WaitOptions::WCONTINUED
@@ -74,45 +68,23 @@ pub fn do_wait(
         |sigmask| sigmask + SIGCHLD,
         || {
             ctx.process.children_wait_queue().pause_until(|| {
-                // Acquire the children lock at first to prevent race conditions.
-                // We want to ensure that multiple waiting threads
-                // do not return the same waited process status.
-                let mut children_lock = ctx.process.children().lock();
-                let children_mut = children_lock.as_mut().unwrap();
+                let has_unready_tracee = match try_wait_tracees(&child_filter, wait_options, ctx) {
+                    Some(Some(status)) => return Some(Ok(Some(status))),
+                    Some(None) => true,
+                    None => false,
+                };
 
-                let unwaited_children = children_mut
-                    .values()
-                    .filter(|child| match &child_filter {
-                        ProcessFilter::Any => true,
-                        ProcessFilter::WithPid(pid) => child.pid() == *pid,
-                        ProcessFilter::WithPgid(pgid) => child.pgid() == *pgid,
-                        ProcessFilter::WithPidfd(pid_file) => match pid_file.process_opt() {
-                            Some(process) => Arc::ptr_eq(&process, child),
-                            None => false,
-                        },
-                    })
-                    .collect::<Box<_>>();
+                let has_unready_child = match try_wait_children(&child_filter, wait_options, ctx) {
+                    Some(Some(status)) => return Some(Ok(Some(status))),
+                    Some(None) => true,
+                    None => false,
+                };
 
-                if unwaited_children.is_empty() {
+                if !has_unready_tracee && !has_unready_child {
                     return Some(Err(Error::with_message(
                         Errno::ECHILD,
                         "the process has no child to wait",
                     )));
-                }
-
-                if let Some(status) = wait_zombie(&unwaited_children) {
-                    if !wait_options.contains(WaitOptions::WNOWAIT) {
-                        reap_zombie_child(
-                            status.pid(),
-                            children_mut,
-                            ctx.process.reaped_children_stats(),
-                        );
-                    }
-                    return Some(Ok(Some(status)));
-                }
-
-                if let Some(status) = wait_stopped_or_continued(&unwaited_children, wait_options) {
-                    return Some(Ok(Some(status)));
                 }
 
                 if wait_options.contains(WaitOptions::WNOHANG) {
@@ -135,68 +107,217 @@ pub fn do_wait(
     Ok(zombie_child)
 }
 
+fn wait_filter(child_pid: Pid, child: &Arc<Process>, child_filter: &ProcessFilter) -> bool {
+    match &child_filter {
+        ProcessFilter::Any => true,
+        ProcessFilter::WithPid(pid) => child_pid == *pid,
+        ProcessFilter::WithPgid(pgid) => child.pgid() == *pgid,
+        ProcessFilter::WithPidfd(pid_file) => match pid_file.process_opt() {
+            Some(process) => Arc::ptr_eq(&process, child),
+            None => false,
+        },
+    }
+}
+
 pub enum WaitStatus {
     Zombie(Arc<Process>),
     Stop(Arc<Process>, SigNum),
     Continue(Arc<Process>),
+    TraceeExit(Arc<Thread>),
+    TraceeStop(Arc<Thread>, SigNum),
 }
 
 impl WaitStatus {
     pub fn pid(&self) -> Pid {
-        self.process().pid()
+        match self.source() {
+            WaitStatusSource::Process(process) => process.pid(),
+            WaitStatusSource::Thread(thread) => thread.tid(),
+        }
     }
 
     pub fn uid(&self) -> Uid {
-        self.process()
-            .main_thread()
-            .as_posix_thread()
-            .unwrap()
-            .credentials()
-            .ruid()
+        match self.source() {
+            WaitStatusSource::Process(process) => process
+                .main_thread()
+                .as_posix_thread()
+                .unwrap()
+                .credentials()
+                .ruid(),
+            WaitStatusSource::Thread(thread) => thread.credentials().ruid(),
+        }
     }
 
     pub fn prof_clock(&self) -> &Arc<ProfClock> {
-        self.process().prof_clock()
+        match self.source() {
+            WaitStatusSource::Process(process) => process.prof_clock(),
+            WaitStatusSource::Thread(thread) => thread.prof_clock(),
+        }
     }
 
-    fn process(&self) -> &Arc<Process> {
+    fn source(&self) -> WaitStatusSource<'_> {
         match self {
             WaitStatus::Zombie(process)
             | WaitStatus::Stop(process, _)
-            | WaitStatus::Continue(process) => process,
+            | WaitStatus::Continue(process) => WaitStatusSource::Process(process.as_ref()),
+            WaitStatus::TraceeExit(thread) | WaitStatus::TraceeStop(thread, _) => {
+                WaitStatusSource::Thread(thread.as_posix_thread().unwrap())
+            }
         }
     }
 }
 
-fn wait_zombie(unwaited_children: &[&Arc<Process>]) -> Option<WaitStatus> {
-    unwaited_children
-        .iter()
-        .find(|child| child.status().is_zombie())
-        .map(|child| WaitStatus::Zombie((*child).clone()))
+enum WaitStatusSource<'a> {
+    Process(&'a Process),
+    Thread(&'a PosixThread),
 }
 
-fn wait_stopped_or_continued(
-    unwaited_children: &[&Arc<Process>],
+/// Checks tracees for exited or ptrace-stopped threads.
+///
+/// Returns:
+/// - `Some(Some(status))` if a tracee status is found,
+/// - `Some(None)` if there are tracees matching `child_filter`, but none is ready,
+/// - `None` if no tracee matches `child_filter`.
+fn try_wait_tracees(
+    child_filter: &ProcessFilter,
     wait_options: WaitOptions,
-) -> Option<WaitStatus> {
-    if !wait_options.intersects(WaitOptions::WSTOPPED | WaitOptions::WCONTINUED) {
-        return None;
-    }
+    ctx: &Context,
+) -> Option<Option<WaitStatus>> {
+    // Currently, we only support the main thread as the tracer,
+    // so there is no need to check the tracees of other threads.
+    //
+    // Lock order: tracer.tracees -> tracee.tracee_status
+    let tracees = ctx.posix_thread.tracees()?;
+    let tracees = tracees.lock();
 
-    // Lock order: children of process -> tasks of process
-    for process in unwaited_children.iter() {
-        let Some(stop_wait_status) = process.wait_stopped_or_continued(wait_options) else {
+    let mut fallback_result = None;
+
+    for thread in tracees.values() {
+        let Some(thread) = thread.upgrade() else {
             continue;
         };
-
-        let wait_status = match stop_wait_status {
-            StopWaitStatus::Stopped(sig_num) => WaitStatus::Stop((*process).clone(), sig_num),
-            StopWaitStatus::Continue => WaitStatus::Continue((*process).clone()),
+        let tracee = thread.as_posix_thread().unwrap();
+        let Some(process) = tracee.weak_process().upgrade() else {
+            continue;
         };
-        return Some(wait_status);
+        if !wait_filter(tracee.tid(), &process, child_filter) {
+            continue;
+        }
+
+        // We have found at least one tracee matching `child_filter`.
+        fallback_result = Some(None);
+
+        if thread.is_exited() {
+            if !wait_options.contains(WaitOptions::WNOWAIT) {
+                cleanup_exited_tracee(&process, &thread, tracee, tracees, ctx);
+            }
+            return Some(Some(WaitStatus::TraceeExit(thread)));
+        }
+
+        // Waiting for ptrace-stops does not require `WaitOptions::WSTOPPED`.
+        if let Some(sig_num) = tracee.wait_ptrace_stopped(wait_options) {
+            return Some(Some(WaitStatus::TraceeStop(thread, sig_num)));
+        }
     }
 
-    None
+    fallback_result
+}
+
+fn cleanup_exited_tracee(
+    process: &Arc<Process>,
+    thread: &Arc<Thread>,
+    tracee: &PosixThread,
+    mut tracees: MutexGuard<HashMap<Tid, Weak<Thread>>>,
+    ctx: &Context,
+) {
+    tracees.remove(&tracee.tid());
+    tracee.detach_tracer();
+    drop(tracees);
+
+    // Exit/death by signal is reported first to the tracer, then,
+    // when the tracer consumes the waitpid(2) result, to the real
+    // parent (to the real parent only when the whole multithreaded
+    // process exits). If the tracer and the real parent are the same
+    // process, the report is sent only once.
+    //
+    // Reference: <https://man7.org/linux/man-pages/man2/ptrace.2.html>
+    if !process.status().is_zombie() {
+        return;
+    }
+    let is_our_child = core::ptr::eq(
+        Weak::as_ptr(process.parent().lock().process()),
+        Arc::as_ptr(&ctx.process),
+    );
+    if !is_our_child {
+        return;
+    }
+    if !Arc::ptr_eq(&process.main_thread(), thread) {
+        return;
+    }
+
+    reap_zombie_child(
+        process.pid(),
+        ctx.process.children().lock().as_mut().unwrap(),
+        ctx.process.reaped_children_stats(),
+    );
+}
+
+/// Checks children for zombie or stopped/continued events.
+///
+/// Returns:
+/// - `Some(Some(status))` if a child status is found,
+/// - `Some(None)` if there are children matching `child_filter`, but none is ready,
+/// - `None` if no child matches `child_filter`.
+fn try_wait_children(
+    child_filter: &ProcessFilter,
+    wait_options: WaitOptions,
+    ctx: &Context,
+) -> Option<Option<WaitStatus>> {
+    // Acquire the children lock at first to prevent race conditions.
+    // We want to ensure that multiple waiting threads
+    // do not return the same waited process status.
+    let mut children_lock = ctx.process.children().lock();
+    let children_mut = children_lock.as_mut().unwrap();
+
+    let mut fallback_result = None;
+
+    for child in children_mut.values() {
+        if !wait_filter(child.pid(), child, child_filter) {
+            continue;
+        }
+
+        // We have found at least one child matching `child_filter`.
+        fallback_result = Some(None);
+
+        if child.main_thread().as_posix_thread().unwrap().is_traced() {
+            continue;
+        }
+
+        if child.status().is_zombie() {
+            let child = child.clone();
+            if !wait_options.contains(WaitOptions::WNOWAIT) {
+                reap_zombie_child(
+                    child.pid(),
+                    children_mut,
+                    ctx.process.reaped_children_stats(),
+                );
+            }
+            return Some(Some(WaitStatus::Zombie(child)));
+        }
+
+        if !wait_options.intersects(WaitOptions::WSTOPPED | WaitOptions::WCONTINUED) {
+            continue;
+        }
+        let Some(stop_wait_status) = child.wait_stopped_or_continued(wait_options) else {
+            continue;
+        };
+        let wait_status = match stop_wait_status {
+            StopWaitStatus::Stopped(sig_num) => WaitStatus::Stop(child.clone(), sig_num),
+            StopWaitStatus::Continue => WaitStatus::Continue(child.clone()),
+        };
+        return Some(Some(wait_status));
+    }
+
+    fallback_result
 }
 
 /// Free zombie child with `child_pid`, returns the exit code of child process.
