@@ -14,9 +14,10 @@ use crate::{
 };
 
 /// The requests that can continue a stopped tracee.
+#[derive(Debug)]
 pub enum PtraceContRequest {
     Continue(Option<SigNum>),
-    #[expect(dead_code)]
+    #[cfg_attr(not(target_arch = "x86_64"), expect(dead_code))]
     SingleStep(Option<SigNum>),
     #[expect(dead_code)]
     Syscall(Option<SigNum>),

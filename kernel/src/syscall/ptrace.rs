@@ -63,6 +63,20 @@ pub fn sys_ptrace(
                 .ptrace_continue(PtraceContRequest::Continue(sig_num), ctx)?;
         }
         #[cfg(target_arch = "x86_64")]
+        PtraceRequest::PTRACE_SINGLESTEP => {
+            let sig_num = if data != 0 {
+                Some(SigNum::try_from(data as u8)?)
+            } else {
+                None
+            };
+
+            let tracee = ctx.posix_thread.get_tracee(tid)?;
+            tracee
+                .as_posix_thread()
+                .unwrap()
+                .ptrace_continue(PtraceContRequest::SingleStep(sig_num), ctx)?;
+        }
+        #[cfg(target_arch = "x86_64")]
         PtraceRequest::PTRACE_GETREGS => {
             let tracee = ctx.posix_thread.get_tracee(tid)?;
             let tracee = tracee.as_posix_thread().unwrap();
