@@ -73,7 +73,12 @@ pub fn handle_pending_signal(
     let sig_num = signal.num();
 
     if sig_num != SIGKILL {
-        match ctx.posix_thread.ptrace_stop(signal, ctx) {
+        match ctx.posix_thread.ptrace_stop(
+            signal,
+            ctx,
+            #[cfg(target_arch = "x86_64")]
+            user_ctx,
+        ) {
             Ok(()) => return,
             Err(s) => signal = s,
         }
