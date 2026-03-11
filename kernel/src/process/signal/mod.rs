@@ -87,7 +87,7 @@ pub fn handle_pending_signal(
         };
 
     if signal.num() != SIGKILL {
-        match ctx.posix_thread.ptrace_stop(signal, ctx) {
+        match ctx.posix_thread.ptrace_stop(signal, ctx, user_ctx) {
             PtraceStopResult::Continued(Some(sig)) => {
                 if ctx.posix_thread.sig_mask().contains(sig.num()) {
                     enqueue_signal_by_source(ctx, sig, sig_source);
