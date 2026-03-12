@@ -107,6 +107,9 @@ pub fn sys_ptrace(
             let siginfo = tracee.as_posix_thread().unwrap().ptrace_get_siginfo()?;
             ctx.user_space().write_val(data, &siginfo)?;
         }
+        PtraceRequest::PTRACE_SETOPTIONS => {
+            // TODO: implement ptrace options
+        }
         _ => {
             warn!("unimplemented ptrace request: {:?}", request);
             return_errno_with_message!(Errno::EOPNOTSUPP, "unimplemented ptrace request");
