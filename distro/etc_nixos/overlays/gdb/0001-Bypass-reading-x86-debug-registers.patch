@@ -1,0 +1,27 @@
+From 233ca86d776e2fc449e9b3d33a13d3ac78c42477 Mon Sep 17 00:00:00 2001
+From: Wang Siyuan <wsy@stu.pku.edu.cn>
+Date: Mon, 16 Mar 2026 21:46:32 +0800
+Subject: [PATCH 1/2] Bypass reading x86 debug registers
+
+Currently, Asterinas does not support setting debug registers,
+so their values are always 0.
+
+---
+ gdb/nat/x86-linux-dregs.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/gdb/nat/x86-linux-dregs.c b/gdb/nat/x86-linux-dregs.c
+index a6c0ea6..efef7f8 100644
+--- a/gdb/nat/x86-linux-dregs.c
++++ b/gdb/nat/x86-linux-dregs.c
+@@ -39,6 +39,7 @@ u_debugreg_offset (int regnum)
+ static unsigned long
+ x86_linux_dr_get (ptid_t ptid, int regnum)
+ {
++  return 0;
+   int tid;
+   unsigned long value;
+
+--
+2.34.1
+
