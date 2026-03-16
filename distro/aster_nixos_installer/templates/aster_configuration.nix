@@ -27,6 +27,8 @@
   # Overlays provide patches to 'nixpkgs' that enable these packages to run effectively on AsterNixOS.
   # For details on the overlay file definition format,
   # please refer to https://nixos.org/manual/nixpkgs/stable/#sec-overlays-definition.
+
+  # (import ./overlays/gdb/default.nix)
   config.nixpkgs.overlays = [
     (import ./overlays/desktop/default.nix)
     (import ./overlays/hello-asterinas/default.nix)

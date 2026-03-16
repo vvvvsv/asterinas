@@ -1,0 +1,32 @@
+From c9ff1faf756378b5edcb4f0762afe973560f9674 Mon Sep 17 00:00:00 2001
+From: Wang Siyuan <wsy@stu.pku.edu.cn>
+Date: Mon, 16 Mar 2026 21:51:31 +0800
+Subject: [PATCH 2/2] Bypass __WALL in wait
+
+Currently, Asterinas does not support the `__WALL` flag in `wait*` syscalls.
+When waiting for ptracees, the semantics are the same whether this flag is specified.
+
+---
+ gdb/nat/linux-ptrace.h | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/gdb/nat/linux-ptrace.h b/gdb/nat/linux-ptrace.h
+index c7d4023..be3149e 100644
+--- a/gdb/nat/linux-ptrace.h
++++ b/gdb/nat/linux-ptrace.h
+@@ -88,11 +88,8 @@
+ #define PTRACE_GETFDPIC_INTERP	1
+ #endif
+
+-/* We can't always assume that this flag is available, but all systems
+-   with the ptrace event handlers also have __WALL, so it's safe to use
+-   in some contexts.  */
+ #ifndef __WALL
+-#define __WALL          0x40000000 /* Wait for any child.  */
++#define __WALL          0
+ #endif
+
+ /* Whether a breakpoint/watchpoint triggered can be determined from
+--
+2.34.1
+
