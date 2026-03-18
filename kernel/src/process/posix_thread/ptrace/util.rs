@@ -4,8 +4,31 @@
 
 use crate::{
     prelude::*,
-    process::{WaitOptions, signal::signals::Signal},
+    process::{
+        WaitOptions,
+        signal::{sig_num::SigNum, signals::Signal},
+    },
 };
+
+/// The requests that can continue a stopped tracee.
+pub enum PtraceContRequest {
+    Continue(Option<SigNum>),
+    #[expect(dead_code)]
+    SingleStep(Option<SigNum>),
+    #[expect(dead_code)]
+    Syscall(Option<SigNum>),
+}
+
+impl PtraceContRequest {
+    pub(super) fn sig_num(&self) -> Option<SigNum> {
+        match self {
+            Self::Continue(Some(sig_num))
+            | Self::SingleStep(Some(sig_num))
+            | Self::Syscall(Some(sig_num)) => Some(*sig_num),
+            _ => None,
+        }
+    }
+}
 
 /// The result of a ptrace-stop.
 pub enum PtraceStopResult {

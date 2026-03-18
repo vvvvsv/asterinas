@@ -3,7 +3,10 @@
 use super::SyscallReturn;
 use crate::{
     prelude::*,
-    process::posix_thread::{AsPosixThread, alien_access::AlienAccessMode},
+    process::{
+        posix_thread::{AsPosixThread, alien_access::AlienAccessMode, ptrace::PtraceContRequest},
+        signal::sig_num::SigNum,
+    },
     thread::{Thread, Tid},
 };
 
@@ -27,6 +30,19 @@ pub fn sys_ptrace(
             let parent_main_thread = parent_guard.process().upgrade().unwrap().main_thread();
 
             do_ptrace_attach(&parent_main_thread, &current_thread)?;
+        }
+        PtraceRequest::PTRACE_CONT => {
+            let sig_num = if data != 0 {
+                Some(SigNum::try_from(data as u8)?)
+            } else {
+                None
+            };
+
+            let tracee = ctx.posix_thread.get_tracee(tid)?;
+            tracee
+                .as_posix_thread()
+                .unwrap()
+                .ptrace_continue(PtraceContRequest::Continue(sig_num), ctx)?;
         }
         _ => {
             warn!("unimplemented ptrace request: {:?}", request);

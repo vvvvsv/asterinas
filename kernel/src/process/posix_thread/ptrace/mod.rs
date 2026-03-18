@@ -17,7 +17,7 @@ use crate::{
             c_types::siginfo_t,
             constants::{CLD_TRAPPED, SIGCHLD},
             sig_num::SigNum,
-            signals::{Signal, raw::RawSignal},
+            signals::{Signal, raw::RawSignal, user::UserSignal},
         },
     },
     thread::{Thread, Tid},
@@ -25,6 +25,7 @@ use crate::{
 
 mod util;
 
+pub use util::PtraceContRequest;
 pub(in crate::process) use util::PtraceStopResult;
 use util::StopDeliverySignal;
 
@@ -78,6 +79,31 @@ impl PosixThread {
             .get()
             .and_then(|status| status.wait(options))
     }
+
+    /// Continues this thread from a ptrace-stop.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if this thread is not ptrace-stopped.
+    pub fn ptrace_continue(&self, request: PtraceContRequest, ctx: &Context) -> Result<()> {
+        let status = self.get_tracee_status()?;
+
+        status.resume(request, ctx)?;
+        self.wake_signalled_waker();
+
+        Ok(())
+    }
+
+    /// Returns the tracee status of this thread if it has ever been traced.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if this thread has never been traced.
+    fn get_tracee_status(&self) -> Result<&TraceeStatus> {
+        self.tracee_status
+            .get()
+            .ok_or_else(|| Error::with_message(Errno::ESRCH, "the thread has never been traced"))
+    }
 }
 
 impl PosixThread {
@@ -122,6 +148,19 @@ impl PosixThread {
     /// Returns the tracee map of this thread if it is a tracer.
     pub(in crate::process) fn tracees(&self) -> Option<&Mutex<HashMap<Tid, Weak<Thread>>>> {
         self.tracees.get()
+    }
+
+    /// Returns the tracee with the given tid, if it is being traced by this thread.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if there is no tracee with the given tid.
+    pub fn get_tracee(&self, tid: Tid) -> Result<Arc<Thread>> {
+        self.tracees()
+            .and_then(|tracees: &Mutex<HashMap<u32, Weak<Thread>>>| {
+                tracees.lock().get(&tid).and_then(|t| t.upgrade())
+            })
+            .ok_or_else(|| Error::with_message(Errno::ESRCH, "no such tracee"))
     }
 
     /// Clears all tracees of this tracer on exit.
@@ -240,6 +279,14 @@ impl TraceeStatus {
         self.is_stopped.load(Ordering::Relaxed)
     }
 
+    fn check_ptrace_stopped(&self, _state_guard: &MutexGuard<'_, TraceeState>) -> Result<()> {
+        if self.is_ptrace_stopped() {
+            Ok(())
+        } else {
+            return_errno_with_message!(Errno::ESRCH, "the thread is not ptrace-stopped");
+        }
+    }
+
     fn wait(&self, options: WaitOptions) -> Option<SigNum> {
         // Hold the lock first to avoid race conditions.
         let mut state = self.state.lock();
@@ -251,6 +298,23 @@ impl TraceeStatus {
 
         let signal = state.signal.wait(options)?;
         Some(signal.num())
+    }
+
+    fn resume(&self, request: PtraceContRequest, ctx: &Context) -> Result<()> {
+        // Hold the lock first to avoid race conditions.
+        let mut state = self.state.lock();
+        self.check_ptrace_stopped(&state)?;
+
+        if let Some(sig_num) = request.sig_num() {
+            state
+                .signal
+                .inject(Box::new(UserSignal::new_kill(sig_num, ctx)));
+        } else {
+            state.signal.clear();
+        }
+        self.is_stopped.store(false, Ordering::Relaxed);
+
+        Ok(())
     }
 }
 
