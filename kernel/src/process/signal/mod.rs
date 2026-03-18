@@ -38,8 +38,8 @@ use crate::{
     prelude::*,
     process::{
         TermStatus,
-        posix_thread::do_exit_group,
-        signal::{c_types::stack_t, signals::Signal},
+        posix_thread::{do_exit_group, ptrace::PtraceStopResult},
+        signal::{c_types::stack_t, constants::SIGKILL, signals::Signal},
     },
 };
 
@@ -66,9 +66,23 @@ pub fn handle_pending_signal(
         None
     };
 
-    let Some((signal, sig_action)) = dequeue_pending_signal(ctx) else {
+    let Some((mut signal, mut sig_action)) = dequeue_pending_signal(ctx) else {
         return;
     };
+
+    if signal.num() != SIGKILL {
+        match ctx.posix_thread.ptrace_stop(signal, ctx) {
+            PtraceStopResult::Continued => return,
+            PtraceStopResult::Interrupted => {
+                let (sigkill, sigkill_action) = dequeue_pending_signal(ctx)
+                    .expect("`SIGKILL` should be pending after interrupting ptrace-stop");
+                assert_eq!(sigkill.num(), SIGKILL);
+                signal = sigkill;
+                sig_action = sigkill_action;
+            }
+            PtraceStopResult::NotTraced(s) => signal = s,
+        }
+    }
 
     let sig_num = signal.num();
     match sig_action {
@@ -144,7 +158,7 @@ fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction)>
         let signal = ctx.dequeue_signal(&sig_mask)?;
         let sig_num = signal.num();
         let sig_action = sig_dispositions.get(sig_num);
-        if sig_action.will_ignore(sig_num) {
+        if sig_action.will_ignore(sig_num) && !posix_thread.may_be_tracee() {
             continue;
         }
 
