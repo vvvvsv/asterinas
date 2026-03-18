@@ -106,7 +106,7 @@ impl StopDeliverySignal {
 
     /// Returns the signal associated with a ptrace-stop,
     /// but does not change the state.
-    fn get(&self) -> Option<&dyn Signal> {
+    pub(super) fn get(&self) -> Option<&dyn Signal> {
         match self {
             Self::Pending(signal) | Self::Consumed(signal) | Self::Injected(signal) => {
                 Some(signal.as_ref())
