@@ -35,8 +35,8 @@ use crate::{
     prelude::*,
     process::{
         TermStatus,
-        posix_thread::{ContextPthreadAdminApi, do_exit_group},
-        signal::{c_types::stack_t, pending::SigSource, signals::Signal},
+        posix_thread::{ContextPthreadAdminApi, do_exit_group, ptrace::PtraceStopResult},
+        signal::{c_types::stack_t, constants::SIGKILL, pending::SigSource, signals::Signal},
     },
 };
 
@@ -67,23 +67,47 @@ pub fn handle_pending_signal(
         .take()
         .map(|mask| RestoreSigMaskGuard { ctx, mask });
 
-    let (signal, sig_action, _) = if let Some(dequeued_signal) = dequeue_pending_signal(ctx) {
-        dequeued_signal
-    } else {
-        // Fast path: There is no signal mask to restore.
-        if restore_sig_mask.is_none() {
-            return;
-        }
-        // Restore the signal mask first.
-        let _ = restore_sig_mask.take();
-
-        // Try again with the new signal mask.
+    let (mut signal, mut sig_action, sig_source) =
         if let Some(dequeued_signal) = dequeue_pending_signal(ctx) {
             dequeued_signal
         } else {
-            return;
+            // Fast path: There is no signal mask to restore.
+            if restore_sig_mask.is_none() {
+                return;
+            }
+            // Restore the signal mask first.
+            let _ = restore_sig_mask.take();
+
+            // Try again with the new signal mask.
+            if let Some(dequeued_signal) = dequeue_pending_signal(ctx) {
+                dequeued_signal
+            } else {
+                return;
+            }
+        };
+
+    if signal.num() != SIGKILL {
+        match ctx.posix_thread.ptrace_stop(signal, ctx) {
+            PtraceStopResult::Continued(Some(sig)) => {
+                if ctx.posix_thread.sig_mask().contains(sig.num()) {
+                    enqueue_signal_by_source(ctx, sig, sig_source);
+                    return;
+                }
+
+                signal = sig;
+                sig_action = get_sig_action(ctx, signal.num());
+            }
+            PtraceStopResult::Continued(None) => return,
+            PtraceStopResult::Interrupted => {
+                let (sigkill, sigkill_action, _) = dequeue_pending_signal(ctx)
+                    .expect("`SIGKILL` should be pending after interrupting ptrace-stop");
+                assert_eq!(sigkill.num(), SIGKILL);
+                signal = sigkill;
+                sig_action = sigkill_action;
+            }
+            PtraceStopResult::NotTraced(s) => signal = s,
         }
-    };
+    }
 
     let sig_num = signal.num();
     match sig_action {
@@ -204,7 +228,7 @@ fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction, 
         let (signal, sig_source) = ctx.dequeue_signal(&sig_mask)?;
         let sig_num = signal.num();
         let sig_action = sig_dispositions.get(sig_num);
-        if sig_action.will_ignore(sig_num) {
+        if sig_action.will_ignore(sig_num) && !posix_thread.is_traced() {
             continue;
         }
 
@@ -220,6 +244,19 @@ fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction, 
     );
 
     Some((signal, sig_action, sig_source))
+}
+
+fn enqueue_signal_by_source(ctx: &Context, signal: Box<dyn Signal>, sig_source: SigSource) {
+    match sig_source {
+        SigSource::Process => ctx.process.enqueue_signal(signal),
+        SigSource::Thread => ctx.posix_thread.enqueue_signal(signal),
+    }
+}
+
+fn get_sig_action(ctx: &Context, sig_num: SigNum) -> SigAction {
+    let sig_dispositions = ctx.process.sig_dispositions().lock();
+    let sig_dispositions = sig_dispositions.lock();
+    sig_dispositions.get(sig_num)
 }
 
 #[expect(clippy::too_many_arguments)]
