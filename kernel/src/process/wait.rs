@@ -11,7 +11,7 @@ use crate::{
     prelude::*,
     process::{
         ReapedChildrenStats, Uid, pid_table,
-        posix_thread::{AsPosixThread, PosixThread},
+        posix_thread::{AsPosixThread, PosixThread, ptrace::PtraceWaitStatus},
         signal::sig_num::SigNum,
         status::StopWaitStatus,
     },
@@ -124,7 +124,7 @@ pub enum WaitStatus {
     Stop(Arc<Process>, SigNum),
     Continue(Arc<Process>),
     TraceeExit(Arc<Thread>),
-    TraceeStop(Arc<Thread>, SigNum),
+    TraceeStop(Arc<Thread>, PtraceWaitStatus),
 }
 
 impl WaitStatus {

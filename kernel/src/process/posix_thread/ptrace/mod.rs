@@ -17,8 +17,7 @@ use crate::{
         signal::{
             PauseReason,
             c_types::siginfo_t,
-            constants::{CLD_TRAPPED, SIGCHLD, SIGKILL},
-            sig_num::SigNum,
+            constants::{CLD_TRAPPED, SIGCHLD, SIGKILL, SIGTRAP},
             signals::{Signal, raw::RawSignal, user::UserSignal},
         },
     },
@@ -28,7 +27,7 @@ use crate::{
 mod util;
 
 use util::StopDeliverySignal;
-pub use util::{PtraceContRequest, PtraceOptions};
+pub use util::{PtraceContRequest, PtraceOptions, PtraceWaitStatus};
 pub(in crate::process) use util::{PtraceEvent, PtraceStopResult};
 
 impl PosixThread {
@@ -76,8 +75,24 @@ impl PosixThread {
         }
     }
 
+    /// Stops this thread by ptrace on the given event if it is currently traced,
+    /// and the corresponding option is enabled.
+    pub(in crate::process) fn ptrace_may_stop_on(
+        &self,
+        event: PtraceEvent,
+        ctx: &Context,
+        user_ctx: &mut UserContext,
+    ) {
+        if let Some(status) = self.tracee_status.get() {
+            status.ptrace_may_stop_on(event, ctx, user_ctx)
+        }
+    }
+
     /// Returns the ptrace-stop status changes for the `wait` syscall.
-    pub(in crate::process) fn wait_ptrace_stopped(&self, options: WaitOptions) -> Option<SigNum> {
+    pub(in crate::process) fn wait_ptrace_stopped(
+        &self,
+        options: WaitOptions,
+    ) -> Option<PtraceWaitStatus> {
         self.tracee_status
             .get()
             .and_then(|status| status.wait(options))
@@ -347,21 +362,64 @@ impl TraceeStatus {
         let _ = user_ctx;
 
         // Hold the lock first to avoid race conditions.
-        let mut state = self.state.lock();
+        let state = self.state.lock();
 
-        let Some(tracer) = state.tracer() else {
+        if state.tracer().is_none() {
             return PtraceStopResult::NotTraced(signal);
-        };
+        }
+
+        self.do_ptrace_stop(state, signal, None, ctx, user_ctx)
+    }
+
+    fn ptrace_may_stop_on(&self, event: PtraceEvent, ctx: &Context, user_ctx: &mut UserContext) {
+        // Hold the lock first to avoid race conditions.
+        let state = self.state.lock();
+
+        if state.tracer().is_none() {
+            return;
+        }
+
+        if !state.options.contains(event.option()) {
+            // If the PTRACE_O_TRACEEXEC option is not in effect, all successful
+            // calls to execve(2) by the traced process will cause it to be sent
+            // a SIGTRAP signal, giving the parent a chance to gain control
+            // before the new program begins execution.
+            //
+            // Reference: <https://man7.org/linux/man-pages/man2/ptrace.2.html>
+            if matches!(&event, PtraceEvent::Exec(_)) {
+                ctx.posix_thread
+                    .enqueue_signal(Box::new(UserSignal::new_kill(SIGTRAP, ctx)));
+            }
+            return;
+        }
+
+        let siginfo = event.siginfo(ctx);
+        let signal = Box::new(RawSignal::new(siginfo));
+
+        self.do_ptrace_stop(state, signal, Some(event), ctx, user_ctx);
+    }
+
+    fn do_ptrace_stop(
+        &self,
+        mut state: MutexGuard<'_, TraceeState>,
+        signal: Box<dyn Signal>,
+        event: Option<PtraceEvent>,
+        ctx: &Context,
+        user_ctx: &mut UserContext,
+    ) -> PtraceStopResult {
+        #[cfg(not(target_arch = "x86_64"))]
+        let _ = user_ctx;
 
         debug_assert!(!self.is_ptrace_stopped());
 
         state.signal.stop(signal);
-        state.event = None;
+        state.event = event;
         #[cfg(target_arch = "x86_64")]
         {
             state.general_regs = Some(*user_ctx.general_regs());
         }
         self.is_stopped.store(true, Ordering::Relaxed);
+        let tracer = state.tracer().unwrap();
         drop(state);
 
         let tracer = tracer.as_posix_thread().unwrap();
@@ -411,7 +469,7 @@ impl TraceeStatus {
         }
     }
 
-    fn wait(&self, options: WaitOptions) -> Option<SigNum> {
+    fn wait(&self, options: WaitOptions) -> Option<PtraceWaitStatus> {
         // Hold the lock first to avoid race conditions.
         let mut state = self.state.lock();
 
@@ -421,7 +479,7 @@ impl TraceeStatus {
         }
 
         let signal = state.signal.wait(options)?;
-        Some(signal.num())
+        Some(signal.to_info().into())
     }
 
     fn resume(&self, request: PtraceContRequest, ctx: &Context) -> Result<()> {
