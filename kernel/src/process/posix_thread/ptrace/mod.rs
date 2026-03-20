@@ -27,9 +27,9 @@ use crate::{
 
 mod util;
 
-pub use util::PtraceContRequest;
-pub(in crate::process) use util::PtraceStopResult;
 use util::StopDeliverySignal;
+pub use util::{PtraceContRequest, PtraceOptions};
+pub(in crate::process) use util::{PtraceEvent, PtraceStopResult};
 
 impl PosixThread {
     /// Returns whether this thread is being traced.
@@ -139,6 +139,28 @@ impl PosixThread {
     pub fn ptrace_poke_user(&self, offset: usize, value: usize) -> Result<()> {
         let status = self.get_tracee_status()?;
         status.poke_user(offset, value)
+    }
+
+    /// Sets ptrace options for this thread.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if this thread is not ptrace-stopped.
+    pub fn ptrace_set_options(&self, options: PtraceOptions) -> Result<()> {
+        let status = self.get_tracee_status()?;
+        status.set_options(options)
+    }
+
+    /// Gets the extra message of the last ptrace event stop.
+    ///
+    /// Returns 0 if the last ptrace-stop is not a ptrace-event-stop.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if this thread is not ptrace-stopped.
+    pub fn ptrace_get_eventmsg(&self) -> Result<usize> {
+        let status = self.get_tracee_status()?;
+        status.get_eventmsg()
     }
 
     /// Gets the waited signal info of this thread for ptrace.
@@ -287,6 +309,7 @@ impl TraceeStatus {
         let mut state = self.state.lock();
 
         state.tracer = Weak::new();
+        state.event = None;
         #[cfg(target_arch = "x86_64")]
         {
             if let Some(regs) = state.general_regs.as_mut() {
@@ -315,6 +338,7 @@ impl TraceeStatus {
         debug_assert!(!self.is_ptrace_stopped());
 
         state.signal.stop(signal);
+        state.event = None;
         #[cfg(target_arch = "x86_64")]
         {
             state.general_regs = Some(*user_ctx.general_regs());
@@ -395,6 +419,8 @@ impl TraceeStatus {
         } else {
             state.signal.clear();
         }
+
+        state.event = None;
 
         #[cfg(target_arch = "x86_64")]
         {
@@ -479,6 +505,24 @@ impl TraceeStatus {
         unreachable!("the offset is valid in `c_user_regs_struct`")
     }
 
+    fn set_options(&self, options: PtraceOptions) -> Result<()> {
+        // Hold the lock first to avoid race conditions.
+        let mut state = self.state.lock();
+        self.check_ptrace_stopped(&state)?;
+
+        state.options = options;
+        Ok(())
+    }
+
+    fn get_eventmsg(&self) -> Result<usize> {
+        // Hold the lock first to avoid race conditions.
+        let state = self.state.lock();
+        self.check_ptrace_stopped(&state)?;
+
+        let msg = state.event.as_ref().map(|event| event.message());
+        Ok(msg.unwrap_or(0))
+    }
+
     fn get_siginfo(&self) -> Result<siginfo_t> {
         // Hold the lock first to avoid race conditions.
         let state = self.state.lock();
@@ -492,9 +536,13 @@ struct TraceeState {
     tracer: Weak<Thread>,
     /// The signal associated with the current ptrace-stop and later signal delivery.
     signal: StopDeliverySignal,
+    /// The extra message of a ptrace-event-stop.
+    event: Option<PtraceEvent>,
     /// The general-purpose registers of the tracee at the time of ptrace-stop.
     #[cfg(target_arch = "x86_64")]
     general_regs: Option<GeneralRegs>,
+    /// The configured ptrace options.
+    options: PtraceOptions,
 }
 
 impl TraceeState {
@@ -502,8 +550,10 @@ impl TraceeState {
         Self {
             tracer: Weak::new(),
             signal: StopDeliverySignal::default(),
+            event: None,
             #[cfg(target_arch = "x86_64")]
             general_regs: None,
+            options: PtraceOptions::empty(),
         }
     }
 
