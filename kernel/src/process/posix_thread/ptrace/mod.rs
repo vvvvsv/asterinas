@@ -17,7 +17,7 @@ use crate::{
         signal::{
             PauseReason,
             c_types::siginfo_t,
-            constants::{CLD_TRAPPED, SIGCHLD},
+            constants::{CLD_TRAPPED, SIGCHLD, SIGKILL},
             sig_num::SigNum,
             signals::{Signal, raw::RawSignal, user::UserSignal},
         },
@@ -183,6 +183,16 @@ impl PosixThread {
             .get()
             .ok_or_else(|| Error::with_message(Errno::ESRCH, "the thread has never been traced"))
     }
+
+    /// Returns the locked tracee state of this thread has ever been traced.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if this thread has never been traced.
+    fn get_state_locked(&self) -> Result<MutexGuard<'_, TraceeState>> {
+        let status = self.get_tracee_status()?;
+        Ok(status.state.lock())
+    }
 }
 
 impl PosixThread {
@@ -243,7 +253,7 @@ impl PosixThread {
     }
 
     /// Clears all tracees of this tracer on exit.
-    pub(in crate::process) fn clear_tracees(&self) {
+    pub(in crate::process) fn clear_tracees(&self, ctx: &Context) {
         let Some(tracees) = self.tracees() else {
             return;
         };
@@ -256,6 +266,14 @@ impl PosixThread {
             };
             let tracee = tracee.as_posix_thread().unwrap();
             tracee.detach_tracer();
+
+            let tracee_state = tracee.get_state_locked().unwrap();
+            if tracee_state
+                .options
+                .contains(PtraceOptions::PTRACE_O_EXITKILL)
+            {
+                tracee.enqueue_signal(Box::new(UserSignal::new_kill(SIGKILL, ctx)));
+            }
         }
     }
 

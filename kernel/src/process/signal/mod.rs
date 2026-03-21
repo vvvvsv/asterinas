@@ -162,7 +162,7 @@ pub fn handle_pending_signal(
                 // FIXME: Linux converts a signal-frame setup failure into a SIGSEGV delivery,
                 // instead of killing the process directly.
                 // This can be observed in LTP test `signal06`.
-                do_exit_group(TermStatus::Killed(SIGSEGV));
+                do_exit_group(TermStatus::Killed(SIGSEGV), ctx, user_ctx);
             }
         }
         SigAction::Dfl if ctx.process.is_init_process() => {
@@ -182,7 +182,7 @@ pub fn handle_pending_signal(
                         sig_num.sig_name()
                     );
                     // The signal terminates the current process. Therefore, we should exit here.
-                    do_exit_group(TermStatus::Killed(sig_num));
+                    do_exit_group(TermStatus::Killed(sig_num), ctx, user_ctx);
                 }
                 SigDefaultAction::Ign => {}
                 SigDefaultAction::Stop => ctx.process.stop(sig_num),
