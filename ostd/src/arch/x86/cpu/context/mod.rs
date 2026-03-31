@@ -395,6 +395,10 @@ impl UserContextApiInternal for UserContext {
 
         // Return when it is syscall or cpu exception type is Fault or Trap.
         loop {
+            if has_kernel_event() {
+                break ReturnReason::KernelEvent;
+            }
+
             crate::task::scheduler::might_preempt();
             self.user_context.run();
 
@@ -433,10 +437,6 @@ impl UserContextApiInternal for UserContext {
                     );
                     crate::arch::irq::enable_local();
                 }
-            }
-
-            if has_kernel_event() {
-                break ReturnReason::KernelEvent;
             }
         }
     }
