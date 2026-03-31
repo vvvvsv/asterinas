@@ -79,9 +79,6 @@ FN_TEST(ptrace_trace_exit)
 }
 END_TEST()
 
-// TODO: Support clone-family ptrace events and remove this guard.
-#ifndef __asterinas__
-
 #define CLEANUP_GRAND_CHILD(notify_sig)                             \
 	pid_t grand_child = eventmsg;                               \
 	TEST_RES(waitpid(grand_child, &status, 0),                  \
@@ -205,5 +202,3 @@ FN_TEST(ptrace_trace_vfork_both)
 	CLEANUP_CHILD();
 }
 END_TEST()
-
-#endif
