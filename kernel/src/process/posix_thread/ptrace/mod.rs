@@ -17,7 +17,7 @@ use crate::{
         signal::{
             PauseReason,
             c_types::siginfo_t,
-            constants::{SIGCHLD, SIGKILL, SIGTRAP},
+            constants::{SIGCHLD, SIGKILL, SIGSTOP, SIGTRAP},
             signals::{Signal, user::UserSignal},
         },
     },
@@ -92,11 +92,22 @@ impl PosixThread {
         }
     }
 
-    /// Returns whether a clone-family ptrace event would be required for `clone_args`.
-    pub(in crate::process) fn needs_ptrace_clone_stop(&self, clone_args: &CloneArgs) -> bool {
+    /// Returns the clone-family ptrace event corresponding to `clone_args`,
+    /// and makes the current tracer to automatically start tracing the newly
+    /// cloned `child`.
+    ///
+    /// Does nothing and returns `None` if:
+    ///  - the current thread is not being traced, or
+    ///  - the corresponding ptrace option is disabled.
+    pub(in crate::process) fn ptrace_event_on_clone(
+        &self,
+        clone_args: &CloneArgs,
+        child: &Arc<Thread>,
+        ctx: &Context,
+    ) -> Option<PtraceEvent> {
         self.tracee_status
             .get()
-            .is_some_and(|status| status.needs_clone_stop(clone_args))
+            .and_then(|status| status.ptrace_event_on_clone(clone_args, child, ctx))
     }
 
     /// Gets and clears the ptrace-stop status changes for the `wait` syscall.
@@ -415,23 +426,42 @@ impl TraceeStatus {
         PtraceStopResult::Continued
     }
 
-    fn needs_clone_stop(&self, clone_args: &CloneArgs) -> bool {
+    fn ptrace_event_on_clone(
+        &self,
+        clone_args: &CloneArgs,
+        child_thread: &Arc<Thread>,
+        ctx: &Context,
+    ) -> Option<PtraceEvent> {
+        // Hold the lock first to avoid race conditions.
         let state = self.state.lock();
-        if state.tracer().is_none() {
-            return false;
+        debug_assert!(!self.is_ptrace_stopped());
+        let tracer = state.tracer()?;
+
+        let child = child_thread.as_posix_thread().unwrap();
+        let child_tid = child.tid();
+        let event = if clone_args.flags.contains(CloneFlags::CLONE_VFORK) {
+            PtraceEvent::Vfork(child_tid)
+        } else if clone_args.exit_signal == Some(SIGCHLD) {
+            PtraceEvent::Fork(child_tid)
+        } else {
+            PtraceEvent::Clone(child_tid)
+        };
+
+        if !state.options.contains(event.option()) {
+            return None;
         }
+
         let options = state.options;
+        drop(state);
 
-        if clone_args.flags.contains(CloneFlags::CLONE_VFORK) {
-            return options.contains(PtraceOptions::PTRACE_O_TRACEVFORK)
-                || options.contains(PtraceOptions::PTRACE_O_TRACEVFORKDONE);
-        }
+        child.set_tracer(Arc::downgrade(&tracer)).unwrap();
+        child.get_state_locked().unwrap().options = options;
 
-        if clone_args.exit_signal == Some(SIGCHLD) {
-            return options.contains(PtraceOptions::PTRACE_O_TRACEFORK);
-        }
+        let tracer = tracer.as_posix_thread().unwrap();
+        tracer.insert_tracee(child_thread.clone());
+        child.enqueue_signal(Box::new(UserSignal::new_kill(SIGSTOP, ctx)));
 
-        options.contains(PtraceOptions::PTRACE_O_TRACECLONE)
+        Some(event)
     }
 
     fn is_ptrace_stopped(&self) -> bool {
