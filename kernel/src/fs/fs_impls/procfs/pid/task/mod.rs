@@ -70,7 +70,7 @@ impl TaskDirOps {
 
 /// Represents the inode at `/proc/[pid]/task/[tid]`.
 #[derive(Clone)]
-pub(super) struct TidDirOps {
+pub struct TidDirOps {
     pub(super) process_ref: Arc<Process>,
     /// If `thread_ref` is `None`, this corresponds to a process-level `/proc/[pid]/*` file.
     /// Otherwise, this corresponds to a thread-level `/proc/[pid]/task/[tid]/*` file.
@@ -83,7 +83,24 @@ impl TidDirOps {
         thread_ref: Arc<Thread>,
         parent: Weak<dyn Inode>,
     ) -> Arc<dyn Inode> {
-        ProcDirBuilder::new(
+        Self::new_inode_with_volatility(process_ref, thread_ref, parent, false)
+    }
+
+    pub fn new_volatile_inode(
+        process_ref: Arc<Process>,
+        thread_ref: Arc<Thread>,
+        parent: Weak<dyn Inode>,
+    ) -> Arc<dyn Inode> {
+        Self::new_inode_with_volatility(process_ref, thread_ref, parent, true)
+    }
+
+    fn new_inode_with_volatility(
+        process_ref: Arc<Process>,
+        thread_ref: Arc<Thread>,
+        parent: Weak<dyn Inode>,
+        is_volatile: bool,
+    ) -> Arc<dyn Inode> {
+        let builder = ProcDirBuilder::new(
             Self {
                 process_ref,
                 thread_ref: Some(thread_ref),
@@ -91,9 +108,13 @@ impl TidDirOps {
             // Reference: <https://elixir.bootlin.com/linux/v6.16.5/source/fs/proc/base.c#L3796>
             mkmod!(a+rx),
         )
-        .parent(parent)
-        .build()
-        .unwrap()
+        .parent(parent);
+
+        if is_volatile {
+            builder.volatile().build().unwrap()
+        } else {
+            builder.build().unwrap()
+        }
     }
 
     pub fn thread(&self) -> Arc<Thread> {

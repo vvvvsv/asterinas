@@ -7,16 +7,13 @@ use super::template::{
     DirOps, ProcDir, ProcDirBuilder, lookup_child_from_table, populate_children_from_table,
 };
 use crate::{
-    fs::{
-        file::mkmod,
-        procfs::pid::task::{TaskDirOps, TidDirOps},
-        vfs::inode::Inode,
-    },
+    fs::{file::mkmod, procfs::pid::task::TaskDirOps, vfs::inode::Inode},
     prelude::*,
     process::Process,
 };
 
 mod task;
+pub(super) use task::TidDirOps;
 
 /// Represents the inode at `/proc/[pid]`.
 pub struct PidDirOps(
