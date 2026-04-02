@@ -126,12 +126,12 @@ impl Clone for InitStack {
 }
 
 impl InitStack {
-    pub fn new() -> Self {
-        let nr_pages_padding = {
-            // We do not want the stack top too close to `VMAR_CAP_ADDR`.
-            // So we add this fixed padding. Any small value greater than zero will do.
-            const NR_FIXED_PADDING_PAGES: usize = 7;
+    pub fn new(is_addr_randomized: bool) -> Self {
+        // We do not want the stack top too close to `VMAR_CAP_ADDR`.
+        // So we add this fixed padding. Any small value greater than zero will do.
+        const NR_FIXED_PADDING_PAGES: usize = 7;
 
+        let nr_pages_padding = if is_addr_randomized {
             // Some random padding pages are added as a simple measure to
             // make the stack values of a buggy user program harder
             // to be exploited by attackers.
@@ -139,6 +139,8 @@ impl InitStack {
             getrandom(nr_random_padding_pages.as_mut_bytes());
 
             nr_random_padding_pages as usize + NR_FIXED_PADDING_PAGES
+        } else {
+            NR_FIXED_PADDING_PAGES
         };
         let initial_top = VMAR_CAP_ADDR - PAGE_SIZE * nr_pages_padding;
         let max_size = INIT_STACK_SIZE;

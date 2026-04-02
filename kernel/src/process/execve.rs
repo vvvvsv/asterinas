@@ -17,7 +17,9 @@ use crate::{
     prelude::*,
     process::{
         ContextUnshareAdminApi, Credentials, Process, pid_table,
-        posix_thread::{ContextPthreadAdminApi, ThreadLocal, ThreadName, sigkill_other_threads},
+        posix_thread::{
+            ContextPthreadAdminApi, Personality, ThreadLocal, ThreadName, sigkill_other_threads,
+        },
         process_vm::{MAX_LEN_STRING_ARG, MAX_NR_STRING_ARGS, ProcessVm},
         program_loader::{ProgramToLoad, elf::ElfLoadInfo},
         signal::{
@@ -54,10 +56,15 @@ pub fn do_execve(
         envp
     );
 
+    let is_addr_randomized = !ctx
+        .posix_thread
+        .personality()
+        .contains(Personality::ADDR_NO_RANDOMIZE);
+
     let program_to_load =
         ProgramToLoad::build_from_file(elf_file.clone(), &path_resolver, argv, envp)?;
 
-    let new_vmar = Vmar::new(ProcessVm::new(elf_file.clone()));
+    let new_vmar = Vmar::new(ProcessVm::new(elf_file.clone(), is_addr_randomized));
     let elf_load_info = program_to_load.load_to_vmar(new_vmar.as_ref(), &path_resolver)?;
 
     // Ensure no other thread is concurrently performing exit_group or execve.

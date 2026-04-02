@@ -257,10 +257,12 @@ fn map_segment_vmos(
             // PIE program: map near a dedicated base.
 
             // Add some random padding.
-            let nr_pages_padding = {
+            let nr_pages_padding = if vmar.process_vm().is_addr_randomized() {
                 let mut nr_random_padding_pages: u8 = 0;
                 getrandom(nr_random_padding_pages.as_mut_bytes());
                 nr_random_padding_pages as usize
+            } else {
+                0
             };
             let offset = (PIE_BASE_ADDR + nr_pages_padding * PAGE_SIZE).align_down(align);
 

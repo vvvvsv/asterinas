@@ -64,10 +64,12 @@ use crate::{fs::vfs::path::Path, prelude::*, vm::vmar::Vmar};
 pub struct ProcessVm {
     /// The initial portion of the main stack of a process.
     init_stack: InitStack,
-    /// The user heap
+    /// The user heap.
     heap: Heap,
     /// The executable file.
     executable_file: Path,
+    /// Whether the addresses allocated in this process are randomized.
+    is_addr_randomized: bool,
     /// The base address for vDSO segment
     #[cfg(target_arch = "riscv64")]
     vdso_base: AtomicUsize,
@@ -75,11 +77,12 @@ pub struct ProcessVm {
 
 impl ProcessVm {
     /// Creates a new `ProcessVm` without mapping anything.
-    pub(super) fn new(executable_file: Path) -> Self {
+    pub(super) fn new(executable_file: Path, is_addr_randomized: bool) -> Self {
         Self {
-            init_stack: InitStack::new(),
+            init_stack: InitStack::new(is_addr_randomized),
             heap: Heap::new_uninitialized(),
             executable_file,
+            is_addr_randomized,
             #[cfg(target_arch = "riscv64")]
             vdso_base: AtomicUsize::new(0),
         }
@@ -91,6 +94,7 @@ impl ProcessVm {
             init_stack: process_vm.init_stack.clone(),
             heap: Heap::fork_from(heap_guard),
             executable_file: process_vm.executable_file.clone(),
+            is_addr_randomized: process_vm.is_addr_randomized,
             #[cfg(target_arch = "riscv64")]
             vdso_base: AtomicUsize::new(process_vm.vdso_base.load(Ordering::Relaxed)),
         }
@@ -131,6 +135,11 @@ impl ProcessVm {
     ) -> Result<()> {
         self.heap()
             .map_and_init_heap(vmar, data_segment_size, heap_base)
+    }
+
+    /// Returns whether the addresses allocated in this process are randomized.
+    pub fn is_addr_randomized(&self) -> bool {
+        self.is_addr_randomized
     }
 
     /// Returns the base address for vDSO segment.

@@ -58,7 +58,7 @@ impl Heap {
     ) -> Result<()> {
         let mut inner = self.inner.lock();
 
-        let nr_pages_padding = {
+        let nr_pages_padding = if vmar.process_vm().is_addr_randomized() {
             // Some random padding pages are added as a simple measure to
             // make the heap values of a buggy user program harder
             // to be exploited by attackers.
@@ -66,6 +66,8 @@ impl Heap {
             getrandom(nr_random_padding_pages.as_mut_bytes());
 
             nr_random_padding_pages as usize
+        } else {
+            0
         };
 
         let heap_start = heap_base.align_up(PAGE_SIZE) + nr_pages_padding * PAGE_SIZE;
