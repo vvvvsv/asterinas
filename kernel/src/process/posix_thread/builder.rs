@@ -15,7 +15,10 @@ use crate::{
     prelude::*,
     process::{
         Credentials, NsProxy, Process, UserNamespace, pid_table,
-        posix_thread::name::ThreadName,
+        posix_thread::{
+            name::ThreadName,
+            personality::{AtomicPersonality, Personality},
+        },
         signal::{sig_mask::AtomicSigMask, sig_queues::SigQueues},
     },
     sched::{Nice, SchedPolicy},
@@ -45,6 +48,7 @@ pub struct PosixThreadBuilder {
     ns_proxy: Option<Arc<NsProxy>>,
     is_init_process: bool,
     default_timer_slack_ns: u64,
+    personality: Personality,
 }
 
 impl PosixThreadBuilder {
@@ -72,6 +76,7 @@ impl PosixThreadBuilder {
             user_ns: None,
             ns_proxy: None,
             default_timer_slack_ns: 50_000, // 50 usec default slack
+            personality: Personality::empty(),
         }
     }
 
@@ -125,6 +130,11 @@ impl PosixThreadBuilder {
         self
     }
 
+    pub fn personality(mut self, personality: Personality) -> Self {
+        self.personality = personality;
+        self
+    }
+
     #[expect(clippy::wrong_self_convention)]
     pub(in crate::process) fn is_init_process(mut self) -> Self {
         self.is_init_process = true;
@@ -150,6 +160,7 @@ impl PosixThreadBuilder {
             ns_proxy,
             is_init_process,
             default_timer_slack_ns,
+            personality,
         } = self;
 
         let file_table = file_table.unwrap_or_else(|| RwArc::new(FileTable::new()));
@@ -187,6 +198,7 @@ impl PosixThreadBuilder {
                     ns_proxy: Mutex::new(Some(ns_proxy.clone())),
                     timer_slack_ns: AtomicU64::new(default_timer_slack_ns),
                     default_timer_slack_ns: AtomicU64::new(default_timer_slack_ns),
+                    personality: AtomicPersonality::new(personality),
                 }
             };
 

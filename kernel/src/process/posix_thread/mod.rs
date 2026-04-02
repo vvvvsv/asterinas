@@ -30,6 +30,7 @@ mod builder;
 mod exit;
 pub mod futex;
 mod name;
+mod personality;
 mod posix_thread_ext;
 mod robust_list;
 mod thread_local;
@@ -38,6 +39,8 @@ pub use builder::PosixThreadBuilder;
 pub(super) use exit::sigkill_other_threads;
 pub use exit::{do_exit, do_exit_group};
 pub use name::{MAX_THREAD_NAME_LEN, ThreadName};
+use personality::AtomicPersonality;
+pub use personality::Personality;
 pub use posix_thread_ext::AsPosixThread;
 pub use robust_list::RobustListHead;
 pub use thread_local::{AsThreadLocal, FileTableRefMut, ThreadLocal};
@@ -90,6 +93,9 @@ pub struct PosixThread {
     timer_slack_ns: AtomicU64,
     /// The default timer slack value for this thread.
     default_timer_slack_ns: AtomicU64,
+
+    /// The personality flags of the thread.
+    personality: AtomicPersonality,
 }
 
 impl PosixThread {
