@@ -119,6 +119,20 @@ pub fn sys_ptrace(
 
             tracee.ptrace_set_regs(regs)?;
         }
+        PtraceRequest::PTRACE_SYSCALL => {
+            if data != 0 {
+                return_errno_with_message!(
+                    Errno::EOPNOTSUPP,
+                    "delivering signal via `PTRACE_SYSCALL` is not supported currently"
+                );
+            }
+
+            let tracee = ctx.posix_thread.get_tracee(tid)?;
+            tracee
+                .as_posix_thread()
+                .unwrap()
+                .ptrace_continue(PtraceContRequest::Syscall)?;
+        }
         PtraceRequest::PTRACE_SETOPTIONS => {
             let options = PtraceOptions::from_bits(data)
                 .ok_or_else(|| Error::with_message(Errno::EINVAL, "invalid ptrace options"))?;

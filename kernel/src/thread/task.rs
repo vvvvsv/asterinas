@@ -14,7 +14,7 @@ use crate::{
     current_userspace,
     prelude::*,
     process::{
-        posix_thread::{AsPosixThread, AsThreadLocal, ThreadLocal},
+        posix_thread::{AsPosixThread, AsThreadLocal, ThreadLocal, ptrace::PtraceStopResult},
         signal::{HandlePendingSignal, PauseReason, handle_pending_signal},
     },
     syscall::handle_syscall,
@@ -92,7 +92,13 @@ pub fn create_new_user_task(
                 }
                 ReturnReason::UserSyscall => {
                     pre_syscall_ret = Some(user_ctx.syscall_ret());
-                    handle_syscall(&ctx, user_ctx);
+                    if !matches!(
+                        ctx.posix_thread.ptrace_may_stop_on_syscall(&ctx, user_ctx),
+                        Some(PtraceStopResult::Interrupted)
+                    ) {
+                        handle_syscall(&ctx, user_ctx);
+                        ctx.posix_thread.ptrace_may_stop_on_syscall(&ctx, user_ctx);
+                    }
                 }
                 ReturnReason::KernelEvent => {}
             };

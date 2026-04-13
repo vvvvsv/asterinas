@@ -5,9 +5,9 @@ use crate::process::ExitCode;
 
 /// The requests that can continue a stopped tracee.
 #[derive(Debug)]
-#[expect(dead_code)]
 pub enum PtraceContRequest {
     Continue,
+    #[cfg(target_arch = "x86_64")]
     SingleStep,
     Syscall,
 }
@@ -108,15 +108,32 @@ impl PtraceEvent {
     }
 }
 
+/// Creates a `siginfo_t` for a syscall-stop.
+pub(super) fn syscall_stop_siginfo(options: PtraceOptions, ctx: &Context) -> siginfo_t {
+    let mut code = SIGTRAP.as_u8() as i32;
+    if options.contains(PtraceOptions::PTRACE_O_TRACESYSGOOD) {
+        code |= 0x80;
+    }
+
+    let mut siginfo = siginfo_t::new(SIGTRAP, code);
+    siginfo.set_pid_uid(
+        ctx.posix_thread.tid(),
+        ctx.posix_thread.credentials().ruid(),
+    );
+    siginfo
+}
+
 /// The `si_status` code of a ptrace-stop for `wait` syscalls.
 pub type PtraceWaitStatus = i32;
 
 impl From<siginfo_t> for PtraceWaitStatus {
     fn from(siginfo: siginfo_t) -> Self {
-        let is_ptrace_event = siginfo.si_code & 0xff == SIGTRAP.as_u8() as i32
-            && PtraceEvent::is_code(siginfo.si_code >> 8);
+        const SIGTRAP_NO: i32 = SIGTRAP.as_u8() as i32;
+        let is_ptrace_event =
+            siginfo.si_code & 0xff == SIGTRAP_NO && PtraceEvent::is_code(siginfo.si_code >> 8);
+        let is_syscall_stop = siginfo.si_code == (SIGTRAP_NO | 0x80);
 
-        if is_ptrace_event {
+        if is_ptrace_event || is_syscall_stop {
             siginfo.si_code
         } else {
             siginfo.si_signo

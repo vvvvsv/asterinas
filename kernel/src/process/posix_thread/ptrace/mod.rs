@@ -33,9 +33,9 @@ use crate::{
 
 mod util;
 
+pub(in crate::process) use util::PtraceEvent;
 use util::StopSigInfo;
-pub use util::{PtraceContRequest, PtraceOptions, PtraceWaitStatus};
-pub(in crate::process) use util::{PtraceEvent, PtraceStopResult};
+pub use util::{PtraceContRequest, PtraceOptions, PtraceStopResult, PtraceWaitStatus};
 
 impl PosixThread {
     /// Returns whether this thread may be a tracee.
@@ -96,6 +96,19 @@ impl PosixThread {
     ) {
         if let Some(status) = self.tracee_status.get() {
             status.ptrace_may_stop_on(event, ctx, user_ctx)
+        }
+    }
+
+    /// Stops this thread at a syscall-stop if requested by the tracer.
+    pub(crate) fn ptrace_may_stop_on_syscall(
+        &self,
+        ctx: &Context,
+        user_ctx: &mut UserContext,
+    ) -> Option<PtraceStopResult> {
+        if let Some(status) = self.tracee_status.get() {
+            status.ptrace_may_stop_on_syscall(ctx, user_ctx)
+        } else {
+            None
         }
     }
 
@@ -348,6 +361,7 @@ impl TraceeStatus {
         state.tracer = Weak::new();
         state.siginfo.clear();
         state.event = None;
+        state.is_tracing_syscall = false;
         #[cfg(target_arch = "x86_64")]
         {
             if let Some(regs) = state.general_regs.as_mut() {
@@ -401,6 +415,21 @@ impl TraceeStatus {
         let siginfo = event.siginfo(ctx);
 
         self.do_ptrace_stop(state, siginfo, Some(event), ctx, user_ctx);
+    }
+
+    fn ptrace_may_stop_on_syscall(
+        &self,
+        ctx: &Context,
+        user_ctx: &mut UserContext,
+    ) -> Option<PtraceStopResult> {
+        let state = self.state.lock();
+
+        if state.tracer().is_none() || !state.is_tracing_syscall {
+            return None;
+        }
+
+        let siginfo = util::syscall_stop_siginfo(state.options, ctx);
+        Some(self.do_ptrace_stop(state, siginfo, None, ctx, user_ctx))
     }
 
     fn do_ptrace_stop(
@@ -516,6 +545,7 @@ impl TraceeStatus {
 
         state.siginfo.clear();
         state.event = None;
+        state.is_tracing_syscall = matches!(request, PtraceContRequest::Syscall);
         #[cfg(target_arch = "x86_64")]
         {
             let regs = state.general_regs.as_mut().unwrap();
@@ -674,6 +704,8 @@ struct TraceeState {
     general_regs: Option<GeneralRegs>,
     /// The configured ptrace options.
     options: PtraceOptions,
+    /// Whether the tracee should stop at the next syscall enter or exit.
+    is_tracing_syscall: bool,
 }
 
 impl TraceeState {
@@ -685,6 +717,7 @@ impl TraceeState {
             #[cfg(target_arch = "x86_64")]
             general_regs: None,
             options: PtraceOptions::empty(),
+            is_tracing_syscall: false,
         }
     }
 
