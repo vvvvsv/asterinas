@@ -1,5 +1,5 @@
-{ lib, stdenvNoCC, fetchFromGitHub, hostPlatform, writeClosure, busybox, apps
-, benchmark, syscall, dnsServer, pkgs }:
+{ lib, stdenvNoCC, fetchFromGitHub, hostPlatform, writeClosure, busybox, strace
+, apps, benchmark, syscall, dnsServer, pkgs }:
 let
   boot_hello = builtins.path { path = ./../src/boot_hello.sh; };
   etc = lib.fileset.toSource {
@@ -16,7 +16,7 @@ let
   resolv_conf = pkgs.callPackage ./resolv_conf.nix { dnsServer = dnsServer; };
   # Whether the initramfs should include evtest, a common tool to debug input devices (`/dev/input/eventX`)
   is_evtest_included = false;
-  all_pkgs = [ busybox etc resolv_conf ]
+  all_pkgs = [ busybox strace etc resolv_conf ]
     ++ lib.optionals (apps != null) [ apps.package ]
     ++ lib.optionals (benchmark != null) [ benchmark.package ]
     ++ lib.optionals (syscall != null) [ syscall.package ]
@@ -32,6 +32,7 @@ in stdenvNoCC.mkDerivation {
     ln -sfn usr/lib $out/lib
     ln -sfn usr/lib64 $out/lib64
     cp -r ${busybox}/bin/* $out/bin/
+    cp ${strace}/bin/strace $out/bin/
     ${lib.optionalString is_evtest_included ''
       cp -r ${pkgs.evtest}/bin/* $out/bin/
     ''}
