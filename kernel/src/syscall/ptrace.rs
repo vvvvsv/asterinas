@@ -39,6 +39,13 @@ pub fn sys_ptrace(
 
             do_ptrace_attach(parent_main_thread, current_thread)?;
         }
+        PtraceRequest::PTRACE_PEEKTEXT | PtraceRequest::PTRACE_PEEKDATA => {
+            let tracee = ctx.posix_thread.get_tracee(tid)?;
+            let tracee = tracee.as_posix_thread().unwrap();
+
+            let val = tracee.ptrace_peek_data(addr)?;
+            ctx.user_space().write_val(data, &val)?;
+        }
         #[cfg(target_arch = "x86_64")]
         PtraceRequest::PTRACE_PEEKUSER => {
             let tracee = ctx.posix_thread.get_tracee(tid)?;
@@ -46,6 +53,12 @@ pub fn sys_ptrace(
 
             let val = tracee.ptrace_peek_user(addr)?;
             ctx.user_space().write_val(data, &val)?;
+        }
+        PtraceRequest::PTRACE_POKETEXT | PtraceRequest::PTRACE_POKEDATA => {
+            let tracee = ctx.posix_thread.get_tracee(tid)?;
+            let tracee = tracee.as_posix_thread().unwrap();
+
+            tracee.ptrace_poke_data(addr, data)?;
         }
         #[cfg(target_arch = "x86_64")]
         PtraceRequest::PTRACE_POKEUSER => {

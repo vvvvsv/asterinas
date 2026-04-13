@@ -1,19 +1,26 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #[cfg(target_arch = "x86_64")]
-use core::mem::{offset_of, size_of};
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::mem::offset_of;
+use core::{
+    mem::size_of,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use hashbrown::HashMap;
 #[cfg(target_arch = "x86_64")]
 use ostd::arch::cpu::context::{GeneralRegs, c_user_regs_struct};
-use ostd::{arch::cpu::context::UserContext, sync::Waiter};
+use ostd::{
+    arch::cpu::context::UserContext,
+    mm::{VmReader, VmWriter},
+    sync::Waiter,
+};
 
 use super::{AsPosixThread, PosixThread};
 use crate::{
     prelude::*,
     process::{
-        CloneArgs, CloneFlags,
+        CloneArgs, CloneFlags, Process,
         signal::{
             PauseReason,
             c_types::siginfo_t,
@@ -171,6 +178,26 @@ impl PosixThread {
     pub fn ptrace_poke_user(&self, offset: usize, value: usize) -> Result<()> {
         let status = self.get_tracee_status()?;
         status.poke_user(offset, value)
+    }
+
+    /// Reads one word in the tracee's memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if this thread is not ptrace-stopped.
+    pub fn ptrace_peek_data(&self, addr: usize) -> Result<usize> {
+        let status = self.get_tracee_status()?;
+        status.peek_data(self.weak_process(), addr)
+    }
+
+    /// Writes one word in the tracee's memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ESRCH` if this thread is not ptrace-stopped.
+    pub fn ptrace_poke_data(&self, addr: usize, value: usize) -> Result<()> {
+        let status = self.get_tracee_status()?;
+        status.poke_data(self.weak_process(), addr, value)
     }
 
     /// Sets ptrace options for this thread.
@@ -569,6 +596,44 @@ impl TraceeStatus {
         ostd::for_all_general_regs!(write_user_reg_by_offset, regs, offset, value);
 
         unreachable!("the offset is valid in `c_user_regs_struct`")
+    }
+
+    fn peek_data(&self, process: &Weak<Process>, addr: usize) -> Result<usize> {
+        // Hold the lock first to avoid race conditions.
+        let state = self.state.lock();
+        self.check_ptrace_stopped(&state)?;
+        let process = process.upgrade().unwrap();
+
+        let vmar_guard = process.lock_vmar();
+        let Some(vmar) = vmar_guard.as_ref() else {
+            return_errno_with_message!(Errno::EIO, "the process has exited");
+        };
+
+        let mut value = [0u8; size_of::<usize>()];
+        let mut writer = VmWriter::from(value.as_mut_slice()).to_fallible();
+        match vmar.read_alien(addr, &mut writer) {
+            Ok(bytes) if bytes == value.len() => Ok(usize::from_ne_bytes(value)),
+            _ => return_errno_with_message!(Errno::EIO, "failed to read tracee memory"),
+        }
+    }
+
+    fn poke_data(&self, process: &Weak<Process>, addr: usize, value: usize) -> Result<()> {
+        // Hold the lock first to avoid race conditions.
+        let state = self.state.lock();
+        self.check_ptrace_stopped(&state)?;
+        let process = process.upgrade().unwrap();
+
+        let vmar_guard = process.lock_vmar();
+        let Some(vmar) = vmar_guard.as_ref() else {
+            return_errno_with_message!(Errno::EIO, "the process has exited");
+        };
+
+        let value = value.to_ne_bytes();
+        let mut reader = VmReader::from(value.as_slice()).to_fallible();
+        match vmar.write_alien(addr, &mut reader) {
+            Ok(bytes) if bytes == value.len() => Ok(()),
+            _ => return_errno_with_message!(Errno::EIO, "failed to write tracee memory"),
+        }
     }
 
     fn set_options(&self, options: PtraceOptions) -> Result<()> {
