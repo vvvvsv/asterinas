@@ -44,6 +44,7 @@ set -e
 ./ptrace/ptrace
 ./ptrace/read_write_regs
 ./ptrace/set_options
+[ "$(uname -m)" = "x86_64" ] && ./ptrace/debug_registers
 
 ./sched/sched_attr_getset
 ./sched/sched_param_getset

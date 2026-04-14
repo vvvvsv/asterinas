@@ -6,7 +6,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use hashbrown::HashMap;
 #[cfg(target_arch = "x86_64")]
-use ostd::arch::cpu::context::{GeneralRegs, c_user_regs_struct};
+use ostd::arch::cpu::context::{DebugRegs, GeneralRegs, c_user_regs_struct};
 use ostd::{arch::cpu::context::UserContext, sync::Waiter};
 
 use super::{AsPosixThread, PosixThread};
@@ -435,6 +435,7 @@ impl TraceeStatus {
         #[cfg(target_arch = "x86_64")]
         {
             state.general_regs = Some(*user_ctx.general_regs());
+            state.debug_regs = Some(*user_ctx.debug_regs());
         }
         self.is_stopped.store(true, Ordering::Relaxed);
         let tracer = state.tracer().unwrap();
@@ -469,7 +470,9 @@ impl TraceeStatus {
         #[cfg(target_arch = "x86_64")]
         {
             let regs = state.general_regs.take().unwrap();
+            let debug_regs = state.debug_regs.take().unwrap();
             *user_ctx.general_regs_mut() = regs;
+            *user_ctx.debug_regs_mut() = debug_regs;
         }
 
         PtraceStopResult::Continued(signal)
@@ -598,19 +601,24 @@ impl TraceeStatus {
         // Hold the lock first to avoid race conditions.
         let state = self.state.lock();
         self.check_ptrace_stopped(&state)?;
-        util::check_user_offset(offset)?;
-
-        macro_rules! read_user_reg_by_offset {
-            ($regs:ident, $offset:ident, [ $field:ident, $($meta:tt)+ ]) => {
-                if $offset == core::mem::offset_of!(c_user_regs_struct, $field) {
-                    return Ok($regs.$field());
+        match util::parse_user_offset(offset)? {
+            util::UserArea::GeneralRegs(offset) => {
+                macro_rules! read_user_reg_by_offset {
+                    ($regs:ident, $offset:ident, [ $field:ident, $($meta:tt)+ ]) => {
+                        if $offset == core::mem::offset_of!(c_user_regs_struct, $field) {
+                            return Ok($regs.$field());
+                        }
+                    };
                 }
-            };
-        }
-        let regs = state.general_regs.unwrap();
-        ostd::for_all_general_regs!(read_user_reg_by_offset, regs, offset);
+                let regs = state.general_regs.unwrap();
+                ostd::for_all_general_regs!(read_user_reg_by_offset, regs, offset);
 
-        unreachable!("the offset is valid in `c_user_regs_struct`")
+                unreachable!("the offset is valid in `c_user_regs_struct`")
+            }
+            util::UserArea::DebugRegs(reg_num) => {
+                util::peek_debug_reg(&state.debug_regs.unwrap(), reg_num)
+            }
+        }
     }
 
     #[cfg(target_arch = "x86_64")]
@@ -618,22 +626,27 @@ impl TraceeStatus {
         // Hold the lock first to avoid race conditions.
         let mut state = self.state.lock();
         self.check_ptrace_stopped(&state)?;
-        util::check_user_offset(offset)?;
-
-        macro_rules! write_user_reg_by_offset {
-            ($regs:ident, $offset:ident, $value:ident, [ $field:ident, $($meta:tt)+ ]) => {
-                if $offset == core::mem::offset_of!(c_user_regs_struct, $field) {
-                    paste::paste! {
-                        util::[<ptrace_set_ $field>](&mut $regs, $value)?;
-                        return Ok(());
-                    }
+        match util::parse_user_offset(offset)? {
+            util::UserArea::GeneralRegs(offset) => {
+                macro_rules! write_user_reg_by_offset {
+                    ($regs:ident, $offset:ident, $value:ident, [ $field:ident, $($meta:tt)+ ]) => {
+                        if $offset == core::mem::offset_of!(c_user_regs_struct, $field) {
+                            paste::paste! {
+                                util::[<ptrace_set_ $field>](&mut $regs, $value)?;
+                                return Ok(());
+                            }
+                        }
+                    };
                 }
-            };
-        }
-        let mut regs = state.general_regs.as_mut().unwrap();
-        ostd::for_all_general_regs!(write_user_reg_by_offset, regs, offset, value);
+                let mut regs = state.general_regs.as_mut().unwrap();
+                ostd::for_all_general_regs!(write_user_reg_by_offset, regs, offset, value);
 
-        unreachable!("the offset is valid in `c_user_regs_struct`")
+                unreachable!("the offset is valid in `c_user_regs_struct`")
+            }
+            util::UserArea::DebugRegs(reg_num) => {
+                util::poke_debug_reg(state.debug_regs.as_mut().unwrap(), reg_num, value)
+            }
+        }
     }
 
     fn set_options(&self, options: PtraceOptions) -> Result<()> {
@@ -672,6 +685,9 @@ struct TraceeState {
     /// The general-purpose registers of the tracee at the time of ptrace-stop.
     #[cfg(target_arch = "x86_64")]
     general_regs: Option<GeneralRegs>,
+    /// The x86 debug registers of the tracee at the time of ptrace-stop.
+    #[cfg(target_arch = "x86_64")]
+    debug_regs: Option<DebugRegs>,
     /// The configured ptrace options.
     options: PtraceOptions,
 }
@@ -684,6 +700,8 @@ impl TraceeState {
             event: None,
             #[cfg(target_arch = "x86_64")]
             general_regs: None,
+            #[cfg(target_arch = "x86_64")]
+            debug_regs: None,
             options: PtraceOptions::empty(),
         }
     }

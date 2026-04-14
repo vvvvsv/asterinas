@@ -3,7 +3,10 @@
 //! Ptrace utilities for POSIX threads.
 
 #[cfg(target_arch = "x86_64")]
-use ostd::arch::cpu::context::{GeneralRegs, c_user_regs_struct};
+use ostd::{
+    arch::cpu::context::{DR6_RESERVED, DebugRegs, GeneralRegs, c_user_regs_struct},
+    mm::MAX_USERSPACE_VADDR,
+};
 
 use crate::{
     prelude::*,
@@ -285,4 +288,175 @@ impl From<siginfo_t> for PtraceWaitStatus {
             siginfo.si_signo
         }
     }
+}
+
+#[cfg(target_arch = "x86_64")]
+pub(super) enum UserArea {
+    GeneralRegs(usize),
+    DebugRegs(usize),
+}
+
+#[cfg(target_arch = "x86_64")]
+#[repr(C)]
+struct c_user_i387_struct {
+    cwd: u16,
+    swd: u16,
+    twd: u16,
+    fop: u16,
+    rip: u64,
+    rdp: u64,
+    mxcsr: u32,
+    mxcsr_mask: u32,
+    st_space: [u32; 32],
+    xmm_space: [u32; 64],
+    padding: [u32; 24],
+}
+
+#[cfg(target_arch = "x86_64")]
+#[repr(C)]
+struct c_user_struct {
+    regs: c_user_regs_struct,
+    u_fpvalid: i32,
+    pad0: i32,
+    i387: c_user_i387_struct,
+    u_tsize: usize,
+    u_dsize: usize,
+    u_ssize: usize,
+    start_code: usize,
+    start_stack: usize,
+    signal: isize,
+    reserved: i32,
+    pad1: i32,
+    u_ar0: usize,
+    u_fpstate: usize,
+    magic: usize,
+    u_comm: [u8; 32],
+    u_debugreg: [usize; 8],
+    error_code: usize,
+    fault_address: usize,
+}
+
+#[cfg(target_arch = "x86_64")]
+const USER_DEBUGREG_OFFSET: usize = core::mem::offset_of!(c_user_struct, u_debugreg);
+#[cfg(target_arch = "x86_64")]
+const USER_DEBUGREG_SIZE: usize = size_of::<[usize; 8]>();
+
+/// Parses the given word offset in `struct user`.
+//
+// Reference: <https://elixir.bootlin.com/linux/v6.16.5/source/arch/x86/include/asm/user_64.h#L103-L132>
+#[cfg(target_arch = "x86_64")]
+pub(super) fn parse_user_offset(offset: usize) -> Result<UserArea> {
+    if !offset.is_multiple_of(size_of::<usize>()) {
+        return_errno_with_message!(Errno::EIO, "invalid USER area offset");
+    }
+
+    if offset >= size_of::<c_user_regs_struct>() {
+        let debugreg_end = USER_DEBUGREG_OFFSET + USER_DEBUGREG_SIZE;
+        if (USER_DEBUGREG_OFFSET..debugreg_end).contains(&offset) {
+            return Ok(UserArea::DebugRegs(
+                (offset - USER_DEBUGREG_OFFSET) / size_of::<usize>(),
+            ));
+        }
+
+        return_errno_with_message!(Errno::EIO, "unsupported USER area offset");
+    }
+
+    Ok(UserArea::GeneralRegs(offset))
+}
+
+#[cfg(target_arch = "x86_64")]
+pub(super) fn peek_debug_reg(debug_regs: &DebugRegs, reg_num: usize) -> Result<usize> {
+    match reg_num {
+        0..=3 | 6 | 7 => Ok(debug_regs.reg(reg_num)),
+        4 | 5 => Ok(0),
+        _ => unreachable!("invalid x86 debug register index"),
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+pub(super) fn poke_debug_reg(
+    debug_regs: &mut DebugRegs,
+    reg_num: usize,
+    value: usize,
+) -> Result<()> {
+    match reg_num {
+        0..=3 => {
+            if value >= MAX_USERSPACE_VADDR {
+                return_errno_with_message!(Errno::EINVAL, "invalid debug register address");
+            }
+            debug_regs.set_reg(reg_num, value);
+        }
+        4 | 5 => return_errno_with_message!(Errno::EIO, "DR4 and DR5 do not exist on x86_64"),
+        6 => debug_regs.set_reg(reg_num, value | DR6_RESERVED),
+        7 => debug_regs.set_reg(reg_num, normalize_dr7(debug_regs, value)?),
+        _ => unreachable!("invalid x86 debug register index"),
+    }
+
+    Ok(())
+}
+
+#[cfg(target_arch = "x86_64")]
+fn normalize_dr7(debug_regs: &DebugRegs, value: usize) -> Result<usize> {
+    const DR_CONTROL_RESERVED: usize = 0xFFFF_FFFF_0000_FC00;
+    const DR_ENABLE_SIZE: usize = 2;
+    const DR_CONTROL_SHIFT: usize = 16;
+    const DR_CONTROL_SIZE: usize = 4;
+    const DR_LEN_MASK: usize = 0xC;
+    const DR_RW_MASK: usize = 0x3;
+    const DR_LEN_1: usize = 0x0;
+    const DR_LEN_2: usize = 0x4;
+    const DR_LEN_4: usize = 0xC;
+    const DR_LEN_8: usize = 0x8;
+    const DR_RW_EXECUTE: usize = 0x0;
+    const DR_RW_WRITE: usize = 0x1;
+    const DR_RW_READ_WRITE: usize = 0x3;
+    let normalized = value & !DR_CONTROL_RESERVED;
+
+    for reg_num in 0..4 {
+        let enabled = ((normalized >> (reg_num * DR_ENABLE_SIZE)) & 0x3) != 0;
+        if !enabled {
+            continue;
+        }
+
+        let control = (normalized >> (DR_CONTROL_SHIFT + reg_num * DR_CONTROL_SIZE)) & 0xF;
+        let rw = control & DR_RW_MASK;
+        let len = control & DR_LEN_MASK;
+
+        match rw {
+            DR_RW_EXECUTE => {
+                if len != DR_LEN_1 {
+                    return_errno_with_message!(
+                        Errno::EINVAL,
+                        "instruction breakpoints must use length 1 encoding"
+                    );
+                }
+            }
+            DR_RW_WRITE | DR_RW_READ_WRITE => {
+                let align_mask = match len {
+                    DR_LEN_1 => 0,
+                    DR_LEN_2 => 1,
+                    DR_LEN_4 => 3,
+                    DR_LEN_8 => 7,
+                    _ => {
+                        return_errno_with_message!(
+                            Errno::EINVAL,
+                            "invalid x86 hardware breakpoint length"
+                        );
+                    }
+                };
+                let addr = debug_regs.reg(reg_num);
+                if addr & align_mask != 0 {
+                    return_errno_with_message!(
+                        Errno::EINVAL,
+                        "misaligned x86 hardware breakpoint address"
+                    );
+                }
+            }
+            _ => {
+                return_errno_with_message!(Errno::EINVAL, "invalid x86 hardware breakpoint type")
+            }
+        }
+    }
+
+    Ok(normalized)
 }

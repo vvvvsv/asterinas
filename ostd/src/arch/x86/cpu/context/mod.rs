@@ -3,7 +3,10 @@
 //! CPU execution context control.
 
 use alloc::boxed::Box;
-use core::arch::x86_64::{_fxrstor64, _fxsave64, _xrstor64, _xsave64};
+use core::arch::{
+    asm,
+    x86_64::{_fxrstor64, _fxsave64, _xrstor64, _xsave64},
+};
 
 use bitflags::bitflags;
 use cfg_if::cfg_if;
@@ -41,6 +44,7 @@ cfg_if! {
 #[derive(Clone, Debug, Default)]
 pub struct UserContext {
     user_context: RawUserContext,
+    debug_regs: DebugRegs,
     exception: Option<CpuException>,
 }
 
@@ -70,6 +74,14 @@ pub struct GeneralRegs {
     pub rflags: usize,
     pub fsbase: usize,
     pub gsbase: usize,
+}
+
+/// x86 debug registers visible through ptrace.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct DebugRegs {
+    dr: [usize; 4],
+    dr6: usize,
+    dr7: usize,
 }
 
 /// C struct corresponding to `struct user_regs_struct` in Linux,
@@ -114,6 +126,9 @@ pub const USER_CS: usize = crate::arch::trap::gdt::USER_CS.0 as usize;
 /// User-space stack segment selector value.
 pub const USER_SS: usize = crate::arch::trap::gdt::USER_SS.0 as usize;
 
+/// Reserved bits in `DR6` that are reported as set by ptrace.
+pub const DR6_RESERVED: usize = 0xFFFF_0FF0;
+
 /// RFlags bits that can be modified by the user.
 // Reference: <https://elixir.bootlin.com/linux/v6.16.5/source/arch/x86/kernel/ptrace.c#L369>.
 pub const RFLAGS_MASK: usize = (RFlags::CARRY_FLAG.bits()
@@ -127,6 +142,72 @@ pub const RFLAGS_MASK: usize = (RFlags::CARRY_FLAG.bits()
     | RFlags::RESUME_FLAG.bits()
     | RFlags::ALIGNMENT_CHECK.bits()
     | RFlags::NESTED_TASK.bits()) as usize;
+
+impl Default for DebugRegs {
+    fn default() -> Self {
+        Self {
+            dr: [0; 4],
+            dr6: DR6_RESERVED,
+            dr7: 0,
+        }
+    }
+}
+
+impl DebugRegs {
+    /// Returns the value of a debug register by ptrace-visible index.
+    pub fn reg(&self, reg_num: usize) -> usize {
+        match reg_num {
+            0..=3 => self.dr[reg_num],
+            6 => self.dr6,
+            7 => self.dr7,
+            _ => unreachable!("invalid x86 debug register index"),
+        }
+    }
+
+    /// Sets the value of a debug register by ptrace-visible index.
+    pub fn set_reg(&mut self, reg_num: usize, value: usize) {
+        match reg_num {
+            0..=3 => self.dr[reg_num] = value,
+            6 => self.dr6 = value,
+            7 => self.dr7 = value,
+            _ => unreachable!("invalid x86 debug register index"),
+        }
+    }
+
+    fn activate(&self) {
+        // SAFETY: Debug registers are privileged CPU state. This method is only
+        // called by the kernel right before returning to user mode, using
+        // ptrace-validated values stored in the current `UserContext`.
+        unsafe {
+            write_debug_reg(0, self.dr[0]);
+            write_debug_reg(1, self.dr[1]);
+            write_debug_reg(2, self.dr[2]);
+            write_debug_reg(3, self.dr[3]);
+            write_debug_reg(6, DR6_RESERVED);
+            write_debug_reg(7, self.dr7);
+        }
+    }
+
+    fn deactivate(&self) {
+        // SAFETY: Clearing debug registers is safe privileged state management
+        // performed by the kernel after leaving user mode.
+        unsafe {
+            write_debug_reg(7, 0);
+            write_debug_reg(6, DR6_RESERVED);
+            write_debug_reg(0, 0);
+            write_debug_reg(1, 0);
+            write_debug_reg(2, 0);
+            write_debug_reg(3, 0);
+        }
+    }
+
+    fn sync_from_cpu_debug_exception(&mut self) {
+        // SAFETY: Reading `DR6` is safe here because the current CPU has just
+        // returned from user mode with a `#DB`, before the kernel clears the
+        // architectural debug status.
+        self.dr6 = unsafe { read_debug_reg(6) };
+    }
+}
 
 /// Expands the given macro as a callback over all general register entries.
 ///
@@ -353,6 +434,16 @@ impl UserContext {
         &mut self.user_context.general
     }
 
+    /// Returns a reference to the x86 debug registers.
+    pub fn debug_regs(&self) -> &DebugRegs {
+        &self.debug_regs
+    }
+
+    /// Returns a mutable reference to the x86 debug registers.
+    pub fn debug_regs_mut(&mut self) -> &mut DebugRegs {
+        &mut self.debug_regs
+    }
+
     /// Takes the CPU exception out.
     pub fn take_exception(&mut self) -> Option<CpuException> {
         self.exception.take()
@@ -380,6 +471,17 @@ impl UserContext {
         // SAFETY: Setting `fsbase` won't affect kernel code.
         unsafe { wrfsbase(self.general_regs().fsbase() as u64) }
     }
+
+    fn activate_debug_regs(&self) {
+        self.debug_regs.activate();
+    }
+
+    fn deactivate_debug_regs(&mut self, exception: Option<CpuException>) {
+        if matches!(exception, Some(CpuException::Debug)) {
+            self.debug_regs.sync_from_cpu_debug_exception();
+        }
+        self.debug_regs.deactivate();
+    }
 }
 
 impl UserContextApiInternal for UserContext {
@@ -400,10 +502,12 @@ impl UserContextApiInternal for UserContext {
             }
 
             crate::task::scheduler::might_preempt();
+            self.activate_debug_regs();
             self.user_context.run();
 
             let exception =
                 CpuException::new(self.user_context.trap_num, self.user_context.error_code);
+            self.deactivate_debug_regs(exception);
             match exception {
                 #[cfg(feature = "cvm_guest")]
                 Some(CpuException::VirtualizationException) => {
@@ -614,6 +718,68 @@ impl GeneralRegs {
         } else {
             self.set_rflags(current_rflags & !TRAP_FLAG);
         }
+    }
+}
+
+unsafe fn read_debug_reg(reg_num: usize) -> usize {
+    let value: usize;
+    match reg_num {
+        0 => {
+            // SAFETY: Accessing `DR0` is privileged and only done by kernel code.
+            unsafe { asm!("mov {}, dr0", out(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        1 => {
+            // SAFETY: Accessing `DR1` is privileged and only done by kernel code.
+            unsafe { asm!("mov {}, dr1", out(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        2 => {
+            // SAFETY: Accessing `DR2` is privileged and only done by kernel code.
+            unsafe { asm!("mov {}, dr2", out(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        3 => {
+            // SAFETY: Accessing `DR3` is privileged and only done by kernel code.
+            unsafe { asm!("mov {}, dr3", out(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        6 => {
+            // SAFETY: Accessing `DR6` is privileged and only done by kernel code.
+            unsafe { asm!("mov {}, dr6", out(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        7 => {
+            // SAFETY: Accessing `DR7` is privileged and only done by kernel code.
+            unsafe { asm!("mov {}, dr7", out(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        _ => unreachable!("invalid x86 debug register index"),
+    }
+    value
+}
+
+unsafe fn write_debug_reg(reg_num: usize, value: usize) {
+    match reg_num {
+        0 => {
+            // SAFETY: Accessing `DR0` is privileged and only done by kernel code.
+            unsafe { asm!("mov dr0, {}", in(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        1 => {
+            // SAFETY: Accessing `DR1` is privileged and only done by kernel code.
+            unsafe { asm!("mov dr1, {}", in(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        2 => {
+            // SAFETY: Accessing `DR2` is privileged and only done by kernel code.
+            unsafe { asm!("mov dr2, {}", in(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        3 => {
+            // SAFETY: Accessing `DR3` is privileged and only done by kernel code.
+            unsafe { asm!("mov dr3, {}", in(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        6 => {
+            // SAFETY: Accessing `DR6` is privileged and only done by kernel code.
+            unsafe { asm!("mov dr6, {}", in(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        7 => {
+            // SAFETY: Accessing `DR7` is privileged and only done by kernel code.
+            unsafe { asm!("mov dr7, {}", in(reg) value, options(nomem, nostack, preserves_flags)) }
+        }
+        _ => unreachable!("invalid x86 debug register index"),
     }
 }
 
