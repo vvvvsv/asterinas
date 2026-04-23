@@ -96,6 +96,15 @@ pub fn handle_pending_signal(
             restorer_addr,
             mask,
         } => {
+            if flags.contains(SigActionFlags::SA_RESETHAND) {
+                // In Linux, SA_RESETHAND corresponds to SA_ONESHOT,
+                // which means the user handler will be executed only once and then reset to the default.
+                // Reference: <https://elixir.bootlin.com/linux/v6.0.9/source/kernel/signal.c#L2761>.
+                let sig_dispositions = ctx.process.sig_dispositions().lock();
+                let mut sig_dispositions = sig_dispositions.lock();
+                sig_dispositions.set_default(sig_num);
+            }
+
             if let Some(pre_syscall_ret) = syscall_restart
                 && flags.contains(SigActionFlags::SA_RESTART)
             {
@@ -188,7 +197,7 @@ fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction, 
     let posix_thread = ctx.posix_thread;
 
     let sig_dispositions = ctx.process.sig_dispositions().lock();
-    let mut sig_dispositions = sig_dispositions.lock();
+    let sig_dispositions = sig_dispositions.lock();
 
     let sig_mask = posix_thread.sig_mask();
     let (signal, sig_num, sig_action, sig_source) = loop {
@@ -202,19 +211,10 @@ fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction, 
         break (signal, sig_num, sig_action, sig_source);
     };
 
-    if let SigAction::User { flags, .. } = &sig_action
-        && flags.contains(SigActionFlags::SA_RESETHAND)
-    {
-        // In Linux, SA_RESETHAND corresponds to SA_ONESHOT,
-        // which means the user handler will be executed only once and then reset to the default.
-        // Reference: <https://elixir.bootlin.com/linux/v6.0.9/source/kernel/signal.c#L2761>.
-        sig_dispositions.set_default(sig_num);
-    }
-
     debug!(
         "sig_num = {:?}, sig_name = {}, sig_action = {:#x?}, sig_source = {:?}",
-        signal.num(),
-        signal.num().sig_name(),
+        sig_num,
+        sig_num.sig_name(),
         sig_action,
         sig_source
     );
