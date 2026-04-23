@@ -36,7 +36,7 @@ use crate::{
     process::{
         TermStatus,
         posix_thread::{ContextPthreadAdminApi, do_exit_group},
-        signal::{c_types::stack_t, signals::Signal},
+        signal::{c_types::stack_t, pending::SigSource, signals::Signal},
     },
 };
 
@@ -67,7 +67,7 @@ pub fn handle_pending_signal(
         .take()
         .map(|mask| RestoreSigMaskGuard { ctx, mask });
 
-    let (signal, sig_action) = if let Some(dequeued_signal) = dequeue_pending_signal(ctx) {
+    let (signal, sig_action, _) = if let Some(dequeued_signal) = dequeue_pending_signal(ctx) {
         dequeued_signal
     } else {
         // Fast path: There is no signal mask to restore.
@@ -184,22 +184,22 @@ impl Drop for RestoreSigMaskGuard<'_> {
     }
 }
 
-fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction)> {
+fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction, SigSource)> {
     let posix_thread = ctx.posix_thread;
 
     let sig_dispositions = ctx.process.sig_dispositions().lock();
     let mut sig_dispositions = sig_dispositions.lock();
 
     let sig_mask = posix_thread.sig_mask();
-    let (signal, sig_num, sig_action) = loop {
-        let signal = ctx.dequeue_signal(&sig_mask)?;
+    let (signal, sig_num, sig_action, sig_source) = loop {
+        let (signal, sig_source) = ctx.dequeue_signal(&sig_mask)?;
         let sig_num = signal.num();
         let sig_action = sig_dispositions.get(sig_num);
         if sig_action.will_ignore(sig_num) {
             continue;
         }
 
-        break (signal, sig_num, sig_action);
+        break (signal, sig_num, sig_action, sig_source);
     };
 
     if let SigAction::User { flags, .. } = &sig_action
@@ -212,13 +212,14 @@ fn dequeue_pending_signal(ctx: &Context) -> Option<(Box<dyn Signal>, SigAction)>
     }
 
     debug!(
-        "sig_num = {:?}, sig_name = {}, sig_action = {:#x?}",
+        "sig_num = {:?}, sig_name = {}, sig_action = {:#x?}, sig_source = {:?}",
         signal.num(),
         signal.num().sig_name(),
-        sig_action
+        sig_action,
+        sig_source
     );
 
-    Some((signal, sig_action))
+    Some((signal, sig_action, sig_source))
 }
 
 #[expect(clippy::too_many_arguments)]

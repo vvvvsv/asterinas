@@ -13,6 +13,15 @@ use crate::{
     },
 };
 
+/// Which signal queue a dequeued signal came from.
+#[derive(Clone, Copy, Debug)]
+pub enum SigSource {
+    /// The signal came from the process's signal queue.
+    Process,
+    /// The signal came from the thread's signal queue.
+    Thread,
+}
+
 /// Trait for handling pending signals.
 pub trait HandlePendingSignal {
     /// Returns the thread's pending signal set.
@@ -31,7 +40,7 @@ pub trait HandlePendingSignal {
     /// Dequeues the next pending signal that is not masked by `mask`.
     ///
     /// Returns `None` if no such signal is available.
-    fn dequeue_signal(&self, mask: &SigMask) -> Option<Box<dyn Signal>>;
+    fn dequeue_signal(&self, mask: &SigMask) -> Option<(Box<dyn Signal>, SigSource)>;
 }
 
 impl HandlePendingSignal for Context<'_> {
@@ -50,11 +59,17 @@ impl HandlePendingSignal for Context<'_> {
             || self.process.sig_queues().has_pending_signal(SIGKILL)
     }
 
-    fn dequeue_signal(&self, mask: &SigMask) -> Option<Box<dyn Signal>> {
+    fn dequeue_signal(&self, mask: &SigMask) -> Option<(Box<dyn Signal>, SigSource)> {
         self.posix_thread
             .sig_queues()
             .dequeue(mask)
-            .or_else(|| self.process.sig_queues().dequeue(mask))
+            .map(|signal| (signal, SigSource::Thread))
+            .or_else(|| {
+                self.process
+                    .sig_queues()
+                    .dequeue(mask)
+                    .map(|signal| (signal, SigSource::Process))
+            })
     }
 }
 
@@ -73,10 +88,16 @@ impl HandlePendingSignal for PosixThread {
             || self.process().sig_queues().has_pending_signal(SIGKILL)
     }
 
-    fn dequeue_signal(&self, mask: &SigMask) -> Option<Box<dyn Signal>> {
+    fn dequeue_signal(&self, mask: &SigMask) -> Option<(Box<dyn Signal>, SigSource)> {
         self.sig_queues()
             .dequeue(mask)
-            .or_else(|| self.process().sig_queues().dequeue(mask))
+            .map(|signal| (signal, SigSource::Thread))
+            .or_else(|| {
+                self.process()
+                    .sig_queues()
+                    .dequeue(mask)
+                    .map(|signal| (signal, SigSource::Process))
+            })
     }
 }
 

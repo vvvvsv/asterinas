@@ -192,7 +192,7 @@ impl SignalFile {
 
         for _ in 0..max_signals {
             match thread.dequeue_signal(&mask) {
-                Some(signal) => {
+                Some((signal, _)) => {
                     writer.write_val(&signal.to_signalfd_siginfo())?;
                     count += 1;
                 }
