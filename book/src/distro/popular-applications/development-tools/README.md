@@ -427,6 +427,48 @@ ninja -C build
 ninja -C build -t targets
 ```
 
+## Debugging Tools
+
+### GDB
+
+[GDB](https://www.sourceware.org/gdb/), the GNU Project debugger, helps developers debug programs by inspecting variables, controlling execution, and analyzing runtime behavior.
+
+#### Installation
+
+```nix
+environment.systemPackages = [ pkgs.gdb ];
+```
+
+#### Verified Usage
+
+```bash
+# Build a debug-friendly test program
+gcc -g -O0 hello.c -o hello
+
+# Set a software breakpoint and stop in `hello_world`
+gdb ./hello
+(gdb) break hello_world
+(gdb) run
+(gdb) continue
+
+# Inspect the current stop
+(gdb) backtrace
+(gdb) frame 0
+(gdb) print x
+(gdb) info registers rip rsp
+
+# Modify the register and memory
+(gdb) set var x = 1000
+(gdb) print heap_value
+(gdb) x/wd heap_value
+(gdb) set {int}heap_value = 1234
+
+# Single-step, remove the breakpoint, and finish execution
+(gdb) step
+(gdb) delete 1
+(gdb) continue
+```
+
 ## Editors & IDEs
 
 ### Emacs
