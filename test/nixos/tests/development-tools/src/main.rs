@@ -305,6 +305,84 @@ fn meson_build(nixos_shell: &mut Session) -> Result<(), Error> {
 }
 
 // ============================================================================
+// Debugging Tools - GDB
+// ============================================================================
+
+#[nixos_test]
+fn gdb_debug(nixos_shell: &mut Session) -> Result<(), Error> {
+    nixos_shell.run_cmd(concat!(
+        r#"printf '%b' '"#,
+        r#"#include <stdio.h>\n"#,
+        r#"#include <stdlib.h>\n"#,
+        r#"__attribute__((noinline)) void hello_world(int x, int *heap_value)\n{\n"#,
+        r#"    printf("Hello, World %d!\\n", x);\n"#,
+        r#"    fflush(stdout);\n"#,
+        r#"}\n"#,
+        r#"int main(void)\n{\n"#,
+        r#"    int *heap_value = malloc(sizeof(*heap_value));\n"#,
+        r#"    if (heap_value == NULL)\n"#,
+        r#"        return 2;\n"#,
+        r#"    *heap_value = 4321;\n"#,
+        r#"    for (int i = 0; i < 5; i++)\n"#,
+        r#"        hello_world(i, heap_value);\n"#,
+        r#"    if (*heap_value != 1234)\n    {\n"#,
+        r#"        printf("memory check failed: %d\\n", *heap_value);\n"#,
+        r#"        free(heap_value);\n"#,
+        r#"        return 3;\n"#,
+        r#"    }\n"#,
+        r#"    printf("memory check passed: %d\\n", *heap_value);\n"#,
+        r#"    free(heap_value);\n"#,
+        r#"    return 0;\n"#,
+        r#"}\n' > /tmp/gdb_sample.c"#,
+    ))?;
+    nixos_shell.run_cmd("gcc -g -O0 /tmp/gdb_sample.c -o /tmp/gdb_sample")?;
+
+    nixos_shell.run_cmd_and_expect(
+        concat!(
+            r#"gdb -q -batch /tmp/gdb_sample "#,
+            r#"-ex 'set pagination off' "#,
+            r#"-ex 'break hello_world' "#,
+            r#"-ex 'run' "#,
+            r#"-ex 'continue' "#,
+            r#"-ex 'info breakpoints' "#,
+            r#"-ex 'backtrace' "#,
+            r#"-ex 'frame 0' "#,
+            r#"-ex 'print x' "#,
+            r#"-ex 'info registers rip rsp' "#,
+            r#"-ex 'set var x = 1000' "#,
+            r#"-ex 'print heap_value' "#,
+            r#"-ex 'x/wd heap_value' "#,
+            r#"-ex 'set {int}heap_value = 1234' "#,
+            r#"-ex 'step' "#,
+            r#"-ex 'delete 1' "#,
+            r#"-ex 'continue' > /tmp/gdb.out 2>&1 && echo GDB_OK"#,
+        ),
+        "GDB_OK",
+    )?;
+    nixos_shell.run_cmd_and_expect(
+        "grep -F 'Breakpoint 1, hello_world' /tmp/gdb.out",
+        "Breakpoint 1, hello_world",
+    )?;
+    nixos_shell.run_cmd_and_expect("grep -F '#0  hello_world' /tmp/gdb.out", "#0  hello_world")?;
+    nixos_shell.run_cmd_and_expect("grep -E '#1 .* in main' /tmp/gdb.out", "in main")?;
+    nixos_shell.run_cmd_and_expect("grep -F '$1 = 1' /tmp/gdb.out", "$1 = 1")?;
+    nixos_shell.run_cmd_and_expect("grep -F 'rip' /tmp/gdb.out", "rip")?;
+    nixos_shell.run_cmd_and_expect("grep -F 'rsp' /tmp/gdb.out", "rsp")?;
+    nixos_shell.run_cmd_and_expect(
+        "grep -F 'Hello, World 1000!' /tmp/gdb.out",
+        "Hello, World 1000!",
+    )?;
+    nixos_shell.run_cmd_and_expect("grep -F '$2 = (int *)' /tmp/gdb.out", "$2 = (int *)")?;
+    nixos_shell.run_cmd_and_expect("grep -F '4321' /tmp/gdb.out", "4321")?;
+    nixos_shell.run_cmd_and_expect(
+        "grep -F 'memory check passed: 1234' /tmp/gdb.out",
+        "memory check passed: 1234",
+    )?;
+
+    Ok(())
+}
+
+// ============================================================================
 // Hugo
 // ============================================================================
 
