@@ -1,0 +1,18 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.45", ranksep="0.7"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  sig [label="信号投递停\nsignal-delivery-stop\n出队非 SIGKILL 信号", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  sys [label="系统调用停\nsyscall entry / exit\nTRACESYSGOOD 编码", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  evt [label="事件停\nexec / exit event-stop\n受 PtraceOptions 控制", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  hub [label="do_ptrace_stop()\n① 保存寄存器现场\n② 记录信号/事件 + wait status\n③ 投递 SIGCHLD 通知 tracer\n④ 阻塞 tracee（StopByPtrace）\n⑤ resume 后回写并返回", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape="box", penwidth="2.4", fontsize="14"];
+  wait [label="tracer 看到 Linux 风格\nwait4 状态字", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
+
+  sig -> hub; sys -> hub; evt -> hub;
+  hub -> wait [label="统一出口"];
+  { rank=same; sig; sys; evt; }
+
+  note [shape=note, fontsize=12, fontname="PingFang SC", fillcolor="#E5F8EE", color="#2F9D57", style="filled",
+        label="设计取舍：ptrace-stop 不另造调度语义，\n复用既有 signal 与 wait 路径"];
+}

@@ -1,0 +1,40 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.22", ranksep="1.2", compound=true];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  a0 -> c0;
+  a1 -> c1;
+  a2 -> c2;
+  a3 -> c3;
+  a4 -> c4;
+  a5 -> c5;
+  a6 -> c6;
+  a7 -> c7;
+  subgraph cluster_act {
+    label="用户态调试动作"; fontname="PingFang SC"; fontsize=14; fontcolor="#7a5200";
+    style="rounded,filled"; color="#C8881A"; fillcolor="#FFF3DC99"; penwidth=1.8; margin=14;
+  a0 [label="启动并追踪", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  a1 [label="exec 后接管", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  a2 [label="设置/命中断点", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  a3 [label="查看/改寄存器", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  a4 [label="查看/改内存", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  a5 [label="单步/继续/跟踪", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  a6 [label="等待状态变化", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  a7 [label="限制非法调试", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  }
+  subgraph cluster_cap {
+    label="内核能力骨架"; fontname="PingFang SC"; fontsize=14; fontcolor="#1c6035";
+    style="rounded,filled"; color="#2F9D57"; fillcolor="#E5F8EE99"; penwidth=1.8; margin=14;
+  c0 [label="TRACEME / 父子关系", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  c1 [label="exec event / SIGTRAP", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  c2 [label="POKETEXT + #BP→SIGTRAP", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  c3 [label="GET/SETREGS · USER area", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  c4 [label="PEEK/POKE · /proc/pid/mem", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  c5 [label="SINGLESTEP/CONT/SYSCALL", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  c6 [label="wait/waitpid/wait4", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
+  c7 [label="access check + Yama LSM", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  }
+  { rank=same; a0; a1; a2; a3; a4; a5; a6; a7; }
+  { rank=same; c0; c1; c2; c3; c4; c5; c6; c7; }
+}

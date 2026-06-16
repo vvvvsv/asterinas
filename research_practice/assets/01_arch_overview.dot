@@ -1,0 +1,63 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.45", ranksep="0.55", compound=true];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  u1 [label="GDB 调试器", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape="box"];
+  u2 [label="strace 跟踪器", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  subgraph cluster_user {
+    label="① 用户态工具链"; fontname="PingFang SC"; fontsize=14; fontcolor="#7a5200";
+    style="rounded,filled"; color="#C8881A"; fillcolor="#FFF3DC99"; penwidth=1.8; margin=14;
+    u1; u2;
+  }
+  s1 [label="sys_ptrace\n系统调用分发", fillcolor="#E7F0FF", color="#2F5FA8", fontcolor="#1d3a66"];
+  s2 [label="/proc 文件接口\nmaps · mem · auxv", fillcolor="#E7F0FF", color="#2F5FA8", fontcolor="#1d3a66"];
+  subgraph cluster_sys {
+    label="② Linux 兼容系统调用接口"; fontname="PingFang SC"; fontsize=14; fontcolor="#1d3a66";
+    style="rounded,filled"; color="#2F5FA8"; fillcolor="#E7F0FF99"; penwidth=1.8; margin=14;
+    s1; s2;
+  }
+  sec1 [label="ptrace_may_access\nUID/GID · CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  sec2 [label="Yama LSM\nptrace_scope 策略", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  sec3 [label="alien access 凭证\nRead/Attach · Fs/Real", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  subgraph cluster_sec {
+    label="③ 安全边界（统一鉴权）"; fontname="PingFang SC"; fontsize=14; fontcolor="#48227f";
+    style="rounded,filled"; color="#6F42C1"; fillcolor="#F1E9FF99"; penwidth=1.8; margin=14;
+    sec1; sec2; sec3;
+  }
+  c1 [label="tracer / tracee 关系\nArc + Weak · 固定锁序", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  c2 [label="ptrace-stop 主状态机\n保存现场 · 阻塞 · 恢复", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  c3 [label="resume 语义\nCONT · STEP · SYSCALL", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  subgraph cluster_core {
+    label="④ ptrace 核心状态机"; fontname="PingFang SC"; fontsize=14; fontcolor="#1c6035";
+    style="rounded,filled"; color="#2F9D57"; fillcolor="#E5F8EE99"; penwidth=1.8; margin=14;
+    c1; c2; c3;
+  }
+  e1 [label="signal", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  e2 [label="syscall", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  e3 [label="exec / exit", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  e4 [label="clone family", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  subgraph cluster_event {
+    label="⑤ 协作事件源（统一触发停止）"; fontname="PingFang SC"; fontsize=14; fontcolor="#5f5c10";
+    style="rounded,filled"; color="#9A9620"; fillcolor="#F8F6E099"; penwidth=1.8; margin=14;
+    e1; e2; e3; e4;
+  }
+  m1 [label="VMAR alien access\n跨进程内存读写", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  m2 [label="寄存器快照\nCUserRegsStruct · USER area", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  subgraph cluster_res {
+    label="⑥ 资源访问原语"; fontname="PingFang SC"; fontsize=14; fontcolor="#7d2723";
+    style="rounded,filled"; color="#C0463F"; fillcolor="#FFEAEA99"; penwidth=1.8; margin=14;
+    m1; m2;
+  }
+  w1 [label="wait / waitpid 报告\nTraceeStop · TraceeExit → wait4", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
+
+  u1 -> s1 [label="ptrace(2)"];
+  u2 -> s1 [label="ptrace(2)"];
+  u1 -> s2 [label="open/read"];  u2 -> s2;
+  s1 -> sec1; s2 -> sec1 [style=dashed];
+  sec1 -> c1; sec2 -> c1 [style=dashed]; sec3 -> m1 [style=dashed];
+  c1 -> c2; c2 -> c3 [dir=both];
+  e1 -> c2; e2 -> c2; e3 -> c2; e4 -> c2 [style=dashed, label="暂拒绝"];
+  c2 -> m1; c2 -> m2; s2 -> m1 [label="复用"];
+  c2 -> w1 [label="SIGCHLD"]; w1 -> u1 [style=dashed, constraint=false]; w1 -> u2 [style=dashed, constraint=false];
+}

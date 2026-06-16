@@ -1,0 +1,21 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.5", ranksep="0.7"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  untraced [label="未被跟踪", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f", shape="ellipse"];
+  attached [label="已建立 trace 关系", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape="ellipse"];
+  stopped [label="ptrace-stop\n保存寄存器现场\n记录信号/事件 + wait status\nis_stopped = true", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape="ellipse"];
+  reported [label="wait 报告\nSIGCHLD(CLD_TRAPPED)", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", shape="ellipse"];
+  running [label="恢复运行\n回写寄存器快照\nis_stopped = false", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape="ellipse"];
+  exited [label="退出 / 清理\nTraceeExit + detach", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", shape="ellipse"];
+
+  untraced -> attached [label="TRACEME / attach"];
+  attached -> stopped [label="signal / syscall / exec / exit"];
+  stopped -> reported [label="SIGCHLD + 唤醒 wait"];
+  reported -> stopped [label="WNOWAIT / 尚未 continue", style=dashed, constraint=false];
+  stopped -> running [label="CONT / SINGLESTEP / SYSCALL"];
+  running -> stopped [label="下一次停止条件", constraint=false];
+  stopped -> exited [label="SIGKILL 打断 / exit"];
+  running -> exited [label="exit"];
+}

@@ -1,0 +1,22 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.55", ranksep="0.8"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  empty [label="Empty\n无停止信号", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f", shape="ellipse"];
+  pending [label="Pending\n等待 wait 观察", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", shape="ellipse"];
+  consumed [label="Consumed\nwait 已报告", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", shape="ellipse"];
+  injected [label="Injected\ntracer 注入新信号", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", shape="ellipse"];
+
+  empty -> pending [label="ptrace-stop: stop()"];
+  pending -> consumed [label="wait（非 WNOWAIT）"];
+  pending -> pending [label="wait + WNOWAIT", constraint=false];
+  pending -> injected [label="resume 注入/替换"];
+  consumed -> injected [label="resume 注入/替换"];
+  pending -> empty [label="resume 抑制 / 清理"];
+  consumed -> empty [label="resume 抑制"];
+  injected -> empty [label="信号投递后清空"];
+
+  note [shape=note, fontsize=12, fontname="PingFang SC", fillcolor="#FFF8E6", color="#C8881A", style="filled",
+        label="四态保证：同一停止不被 wait 重复报告；\nwait 返回后信号不丢失；\ntracer 仍可在 CONT 时替换 / 注入 / 抑制"];
+}

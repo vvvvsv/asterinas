@@ -1,0 +1,21 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.6", ranksep="0.9"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  tracer [label="Tracer 线程\n(GDB 主线程)", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  map [label="tracees: BTreeMap&lt;Tid, Arc&lt;Thread&gt;&gt;\n强引用持有 tracee", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  tracee [label="Tracee 线程\n(被调试进程)", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
+  status [label="TraceeStatus\nis_stopped · state", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  back [label="TraceeState.tracer: Weak&lt;Thread&gt;\n反向弱引用（打破环）", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+
+  tracer -> map [label="持有"];
+  map -> tracee [label="Arc 强引用", color="#2F9D57", penwidth=2.2];
+  tracee -> status [label="拥有"];
+  status -> back;
+  back -> tracer [label="Weak 弱引用", style=dashed, color="#C0463F", penwidth=2.2, constraint=false];
+  { rank=same; map; status; }
+
+  note [shape=note, fontname="PingFang SC", fontsize=12, fillcolor="#FFF8E6", color="#C8881A", style="filled",
+        label="固定锁序：tracer.tracees  →  tracee.tracee_status\nwait / resume / detach / exit 清理均按同一方向加锁\n避免遍历与停止/退出之间交叉等待死锁"];
+}

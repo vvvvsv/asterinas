@@ -1,0 +1,17 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.4", ranksep="0.7"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  g [label="GDB / strace\nptrace(request, tid, addr, data)", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  p [label="sys_ptrace 解析 PtraceRequest", fillcolor="#E7F0FF", color="#2F5FA8", fontcolor="#1d3a66"];
+  attach [label="TRACEME\n建立 tracer/tracee 关系\n+ 权限检查", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  look [label="get_tracee(tid)\n校验追踪关系", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  mem [label="PEEK/POKE TEXT·DATA\n读写 tracee 内存", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  ua [label="PEEK/POKE USER · GET/SETREGS\n寄存器与 USER area", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  cont [label="CONT · SINGLESTEP · SYSCALL\n注入信号 + 恢复运行", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  opt [label="SETOPTIONS · GETEVENTMSG · GETSIGINFO\n事件与 siginfo", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+
+  g -> p; p -> attach; p -> look;
+  look -> mem; look -> ua; look -> cont; look -> opt;
+}

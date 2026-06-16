@@ -1,0 +1,33 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.45", ranksep="0.6"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  req [label="调试请求\nptrace attach / proc mem", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  same [label="同进程？", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f", shape="diamond", style="filled"];
+  ugid [label="UID/GID 匹配？\n(Fs 或 Real creds)", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape="diamond", style="filled"];
+  cap [label="具备 CAP_SYS_PTRACE？", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape="diamond", style="filled"];
+  yama [label="Yama LSM hook", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  allow [label="放行", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  deny [label="拒绝 EPERM/EACCES", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+
+  req -> same;
+  same -> allow [label="是", color="#2F9D57"];
+  same -> ugid [label="否"];
+  ugid -> cap [label="否"];
+  ugid -> yama [label="是"];
+  cap -> yama [label="是"];
+  cap -> deny [label="否", color="#C0463F"];
+  yama -> allow [label="scope 通过", color="#2F9D57"];
+  yama -> deny [label="scope 拒绝", color="#C0463F"];
+
+  subgraph cluster_scope {
+    label="Yama ptrace_scope"; fontname="PingFang SC"; fontsize=13; fontcolor="#48227f";
+    style="rounded,filled"; color="#6F42C1"; fillcolor="#F1E9FF99"; margin=12;
+    y0 [label="0 Disabled · 不额外限制", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y1 [label="1 Relational（默认）· 仅祖先 / CAP", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y2 [label="2 Capability · 仅 CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y3 [label="3 NoAttach · 全禁，设置后不可降级", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y0 -> y1 -> y2 -> y3 [style=invis];
+  }
+}

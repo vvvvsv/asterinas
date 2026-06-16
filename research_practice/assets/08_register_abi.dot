@@ -1,0 +1,20 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.35", ranksep="0.55"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  trap [label="tracee 陷入内核\nsignal/syscall/exec/exit", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  snap [label="进入 ptrace-stop\n复制 GeneralRegs + orig_rax 到快照", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  rule [label="CUserRegsStruct + REG_RULES\n字段级访问策略", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", penwidth="2.2"];
+  set [label="rax..r15 → Set\n自由修改", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  setif [label="rip/rsp/fs/gsbase → SetIf\n必须是用户地址", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  trunc [label="rflags → SetBitsTruncate\n仅用户态可控位", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  fixed [label="cs/ss/ds/es → Fixed\n匹配 Linux 段不变量", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  dbg [label="debug regs → 读默认值\n写返回 EOPNOTSUPP", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  wb [label="tracee 唤醒\n快照写回 UserContext", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+
+  trap -> snap -> rule;
+  rule -> set; rule -> setif; rule -> trunc; rule -> fixed; rule -> dbg;
+  set -> wb [style=invis]; setif -> wb; trunc -> wb [style=invis]; fixed -> wb [style=invis]; dbg -> wb [style=invis];
+  { rank=same; set; setif; trunc; fixed; dbg; }
+}

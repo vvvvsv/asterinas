@@ -1,0 +1,15 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.4", ranksep="0.55"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  t4 [label="真实工具链验收\n真实 GDB（断点/回溯/单步/改内存）· strace", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", penwidth="2.4", fontsize="14"];
+  t3 [label="兼容性测试\ngVisor ptrace_test · 以 ABI 行为为准", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  t2 [label="集成 / 回归测试\ndebugger·debuggee · PTRACE_SYSCALL · proc mem/maps · Yama", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  t1 [label="单元测试\nptrace.c · read_write_regs.c · set_options.c", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
+
+  t1 -> t2 -> t3 -> t4 [dir=none];
+
+  note [shape=note, fontsize=12, fontname="PingFang SC", fillcolor="#E5F8EE", color="#2F9D57", style="filled",
+        label="原则：以真实工具为准、以 ABI 行为为准；\n安全测试与功能测试同等重要"];
+}

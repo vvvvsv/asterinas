@@ -1,0 +1,17 @@
+digraph G {
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.5", ranksep="0.9"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  ms0 [label="04.23\nprocfs 视图 + 安全地基\n/proc maps·mem·auxv·tid\nforce-write · access check · Yama · tkill", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
+  ms1 [label="04.26\nptrace 最小闭环\nsyscall 框架 · TRACEME · CONT\nptrace-stop · wait 整合 · exec SIGTRAP", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  ms2 [label="05.14\n寄存器与单步\nGET/SETREGS · PEEK/POKEUSER\nSINGLESTEP · 断点 · GETSIGINFO/KILL", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  ms3 [label="05.18\noptions 与 event-stop\nSETOPTIONS · GETEVENTMSG\nEXEC/EXIT event · EXITKILL", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
+  ms4 [label="05.21\nABI 对齐 + GDB CI\nUSER_CS/SS 对齐 · debug regs 仿真\npersonality · GDB 文档/CI", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  ms5 [label="05.28\nsyscall 跟踪 + strace\nPTRACE_SYSCALL · TRACESYSGOOD\nPEEK/POKE TEXT·DATA · strace CI", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  ms0 -> ms1 -> ms2 [constraint=false];
+  ms3 -> ms4 -> ms5 [constraint=false];
+  ms2 -> ms3 [label="", color="#5b6b7d"];
+  { rank=same; ms0; ms1; ms2; }
+  { rank=same; ms3; ms4; ms5; }
+}
