@@ -1,0 +1,23 @@
+digraph G {
+  graph [fontname="Noto Sans CJK SC", bgcolor="white", rankdir=LR, pad="0.25", nodesep="0.5", ranksep="0.55"];
+  node [fontname="Noto Sans CJK SC", shape=box, style="rounded,filled", color="#2f4f6f", fillcolor="#edf5ff", penwidth=1.4, margin="0.12,0.08"];
+  edge [fontname="Noto Sans CJK SC", color="#4b6278", penwidth=1.3, arrowsize=0.8];
+
+  ptrace [label="ptrace PEEK/POKE\nTraceeStatus::peek_data/poke_data", fillcolor="#fff4df", color="#b57900"];
+  proc [label="/proc/[pid]/mem\nread_at/write_at", fillcolor="#fff4df", color="#b57900"];
+  check [label="检查权限/停止态\nptrace-stopped 或 alien access"];
+  vmar [label="目标进程 VMAR\nprocess.lock_vmar()"];
+  access [label="Vmar::access_alien\n校验用户地址 + 按页遍历"];
+  query [label="query_page_with_required_flags\n查询映射/权限，不切换地址空间"];
+  fault [label="必要时 force page fault\nhandle_page_fault 后重试", fillcolor="#f7f7e8", color="#77772d"];
+  frame [label="RAM UFrame\nframe.reader()/writer() 拷贝", fillcolor="#fff0f0", color="#a33a3a"];
+
+  ptrace -> check;
+  proc -> check;
+  check -> vmar;
+  vmar -> access;
+  access -> query;
+  query -> frame [label="映射存在且权限满足"];
+  query -> fault [label="缺页/权限需处理"];
+  fault -> query;
+}

@@ -1,0 +1,24 @@
+digraph G {
+  graph [fontname="Noto Sans CJK SC", bgcolor="white", rankdir=LR, pad="0.25", nodesep="0.5", ranksep="0.55"];
+  node [fontname="Noto Sans CJK SC", shape=box, style="rounded,filled", color="#2f4f6f", fillcolor="#edf5ff", penwidth=1.4, margin="0.12,0.08"];
+  edge [fontname="Noto Sans CJK SC", color="#4b6278", penwidth=1.3, arrowsize=0.8];
+
+  user [label="GDB / strace\nptrace(request, tid, addr, data)", fillcolor="#fff4df", color="#b57900"];
+  sys [label="sys_ptrace\n解析 PtraceRequest"];
+  attach [label="PTRACE_TRACEME\ndo_ptrace_attach\n权限检查 + 建立关系", fillcolor="#f5edff", color="#6f42c1"];
+  lookup [label="get_tracee(tid)\n校验当前 tracer 是否跟踪该 tid"];
+  memory [label="PEEKTEXT/PEEKDATA\nPOKETEXT/POKEDATA\n读写 tracee 内存", fillcolor="#fff0f0", color="#a33a3a"];
+  userarea [label="PEEKUSER/POKEUSER\nx86 USER area", fillcolor="#fff0f0", color="#a33a3a"];
+  regs [label="GETREGS/SETREGS\nCUserRegsStruct", fillcolor="#fff0f0", color="#a33a3a"];
+  cont [label="CONT / SYSCALL / SINGLESTEP\n注入信号 + 恢复运行", fillcolor="#eefcf3", color="#2f7d46"];
+  opts [label="SETOPTIONS / GETEVENTMSG / GETSIGINFO\n事件和 siginfo", fillcolor="#eefcf3", color="#2f7d46"];
+
+  user -> sys;
+  sys -> attach;
+  sys -> lookup;
+  lookup -> memory;
+  lookup -> userarea;
+  lookup -> regs;
+  lookup -> cont;
+  lookup -> opts;
+}
