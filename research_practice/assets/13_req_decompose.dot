@@ -29,8 +29,8 @@ digraph G {
   c0 [label="TRACEME / 父子关系", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
   c1 [label="exec event / SIGTRAP", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
   c2 [label="POKETEXT + #BP→SIGTRAP", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
-  c3 [label="GET/SETREGS · USER area", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
-  c4 [label="PEEK/POKE · /proc/pid/mem", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  c3 [label="GET/SETREGS, USER area", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+  c4 [label="PEEK/POKE, /proc/pid/mem", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
   c5 [label="SINGLESTEP/CONT/SYSCALL", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
   c6 [label="wait/waitpid/wait4", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
   c7 [label="access check + Yama LSM", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];

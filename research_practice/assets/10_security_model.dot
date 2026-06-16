@@ -24,10 +24,10 @@ digraph G {
   subgraph cluster_scope {
     label="Yama ptrace_scope"; fontname="PingFang SC"; fontsize=13; fontcolor="#48227f";
     style="rounded,filled"; color="#6F42C1"; fillcolor="#F1E9FF99"; margin=12;
-    y0 [label="0 Disabled · 不额外限制", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
-    y1 [label="1 Relational（默认）· 仅祖先 / CAP", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
-    y2 [label="2 Capability · 仅 CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
-    y3 [label="3 NoAttach · 全禁，设置后不可降级", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y0 [label="0 Disabled、不额外限制", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y1 [label="1 Relational（默认）、仅祖先 / CAP", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y2 [label="2 Capability、仅 CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
+    y3 [label="3 NoAttach、全禁，设置后不可降级", fillcolor="#F1E9FF", color="#6F42C1", fontname="PingFang SC", fontsize=12];
     y0 -> y1 -> y2 -> y3 [style=invis];
   }
 }

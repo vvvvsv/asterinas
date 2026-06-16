@@ -3,7 +3,7 @@ digraph G {
   graph [fontname="PingFang SC", bgcolor="white", pad="0.35", nodesep="0.45", ranksep="1.1", overlap=false, mindist="1.2"];
   node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
   edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
-  hub0 [label="软件断点闭环\n（非独立模块·原语组合）", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", penwidth="2.4", fontsize="14"];
+  hub0 [label="软件断点闭环\n（非独立模块、原语组合）", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", penwidth="2.4", fontsize="14"];
   b1 [label="① maps 定位代码映射", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
   b2 [label="② PEEKTEXT 读原指令", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
   b3 [label="③ POKETEXT 写 int3", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];

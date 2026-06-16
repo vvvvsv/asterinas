@@ -1,63 +1,27 @@
 digraph G {
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.25", splines=true];
+  node [fontname="PingFang SC"];
+  edge [fontname="PingFang SC", arrowsize=0.85];
+  user [shape=box, style="rounded,filled", fillcolor="#FFF3DC40", color="#C8881A", penwidth=1.6, pos="0,500", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="#7a5200"><B>① USER APP（GDB / strace）</B></FONT></TD></TR><TR><TD><TABLE BORDER="0" CELLBORDER="1" COLOR="#C8881A" CELLSPACING="3" CELLPADDING="3"><TR><TD BGCOLOR="#FFF3DC"><FONT POINT-SIZE="11" COLOR="#7a5200">GDB 调试器</FONT></TD><TD BGCOLOR="#FFF3DC"><FONT POINT-SIZE="11" COLOR="#7a5200">strace 跟踪器</FONT></TD></TR></TABLE></TD></TR></TABLE>>];
+  sys [shape=box, style="rounded,filled", fillcolor="#E7F0FF40", color="#2F5FA8", penwidth=1.6, pos="0,400", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="#1d3a66"><B>② 系统调用接口（Linux ABI）</B></FONT></TD></TR><TR><TD><TABLE BORDER="0" CELLBORDER="1" COLOR="#2F5FA8" CELLSPACING="3" CELLPADDING="3"><TR><TD BGCOLOR="#E7F0FF"><FONT POINT-SIZE="11" COLOR="#1d3a66">sys_ptrace<BR/>系统调用分发</FONT></TD><TD BGCOLOR="#E7F0FF"><FONT POINT-SIZE="11" COLOR="#1d3a66">/proc 文件接口<BR/>maps, mem, ...</FONT></TD></TR></TABLE></TD></TR></TABLE>>];
+  perm [shape=box, style="rounded,filled", fillcolor="#F1E9FF40", color="#6F42C1", penwidth=1.6, pos="250,360", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="#48227f"><B>③ 权限检查（统一鉴权）</B></FONT></TD></TR><TR><TD><TABLE BORDER="0" CELLBORDER="1" COLOR="#6F42C1" CELLSPACING="3" CELLPADDING="3"><TR><TD BGCOLOR="#F1E9FF"><FONT POINT-SIZE="11" COLOR="#48227f">Yama LSM<BR/>ptrace_scope 策略</FONT></TD><TD BGCOLOR="#F1E9FF"><FONT POINT-SIZE="11" COLOR="#48227f">alien access 凭证<BR/>Read/Attach, Fs/Real</FONT></TD></TR></TABLE></TD></TR></TABLE>>];
+  sm [shape=box, style="rounded,filled", fillcolor="#E5F8EE33", color="#2F9D57", penwidth=1.6, pos="0,258", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="#1c6035"><B>④ tracer / tracee 状态机</B></FONT></TD></TR><TR><TD><TABLE BORDER="0" CELLBORDER="1" COLOR="#2F9D57" CELLSPACING="3" CELLPADDING="3"><TR><TD  BGCOLOR="#E5F8EE"><FONT POINT-SIZE="11" COLOR="#1c6035">建立关系<BR/>TRACEME / attach</FONT></TD><TD BORDER="0"><FONT POINT-SIZE="12" COLOR="#1c6035">&#8594;</FONT></TD><TD PORT="pstop" BGCOLOR="#E5F8EE"><FONT POINT-SIZE="11" COLOR="#1c6035">ptrace-stop<BR/>保存现场, 阻塞</FONT></TD><TD BORDER="0"><FONT POINT-SIZE="12" COLOR="#1c6035">&#8594;</FONT></TD><TD  BGCOLOR="#E5F8EE"><FONT POINT-SIZE="11" COLOR="#1c6035">wait 报告<BR/>SIGCHLD &#8594; wait4</FONT></TD><TD BORDER="0"><FONT POINT-SIZE="12" COLOR="#1c6035">&#8594;</FONT></TD><TD PORT="pres" BGCOLOR="#E5F8EE"><FONT POINT-SIZE="11" COLOR="#1c6035">resume<BR/>CONT, STEP, SYSCALL</FONT></TD></TR><TR><TD COLSPAN="7" BORDER="0" HEIGHT="30"><FONT POINT-SIZE="11" COLOR="#1c6035">                              再停止（resume 后命中新 stop）</FONT></TD></TR></TABLE></TD></TR></TABLE>>];
+  alien [shape=box, style="rounded,filled", fillcolor="#FFEAEA40", color="#C0463F", penwidth=1.6, pos="-170,120", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="#7d2723"><B>⑤ 跨进程用户空间读写</B></FONT></TD></TR><TR><TD><TABLE BORDER="0" CELLBORDER="1" COLOR="#C0463F" CELLSPACING="3" CELLPADDING="3"><TR><TD BGCOLOR="#FFEAEA"><FONT POINT-SIZE="11" COLOR="#7d2723">底层实现<BR/>VMAR alien access</FONT></TD><TD BGCOLOR="#FFEAEA"><FONT POINT-SIZE="11" COLOR="#7d2723">API<BR/>ptrace PEEK / POKE<BR/>/proc/pid/mem</FONT></TD></TR></TABLE></TD></TR></TABLE>>];
+  reg [shape=box, style="rounded,filled", fillcolor="#E3F4F440", color="#1F8585", penwidth=1.6, pos="80,120", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="#0f5151"><B>⑥ 寄存器上下文快照</B></FONT></TD></TR><TR><TD><TABLE BORDER="0" CELLBORDER="1" COLOR="#1F8585" CELLSPACING="3" CELLPADDING="3"><TR><TD BGCOLOR="#E3F4F4"><FONT POINT-SIZE="11" COLOR="#0f5151">CUserRegsStruct<BR/>USER area</FONT></TD><TD BGCOLOR="#E3F4F4"><FONT POINT-SIZE="11" COLOR="#0f5151">字段级写策略<BR/>rip/rsp/段寄存器 等</FONT></TD></TR></TABLE></TD></TR></TABLE>>];
+  cowork [shape=box, style="rounded,filled", fillcolor="#F8F6E040", color="#9A9620", penwidth=1.6, pos="285,120", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="#5f5c10"><B>⑦ 与其他系统调用协作</B></FONT></TD></TR><TR><TD><TABLE BORDER="0" CELLBORDER="1" COLOR="#9A9620" CELLSPACING="3" CELLPADDING="3"><TR><TD BGCOLOR="#F8F6E0"><FONT POINT-SIZE="11" COLOR="#5f5c10">signal</FONT></TD><TD BGCOLOR="#F8F6E0"><FONT POINT-SIZE="11" COLOR="#5f5c10">wait</FONT></TD><TD BGCOLOR="#F8F6E0"><FONT POINT-SIZE="11" COLOR="#5f5c10">clone</FONT></TD></TR><TR><TD BGCOLOR="#F8F6E0"><FONT POINT-SIZE="11" COLOR="#5f5c10">exec</FONT></TD><TD BGCOLOR="#F8F6E0"><FONT POINT-SIZE="11" COLOR="#5f5c10">exit</FONT></TD><TD BGCOLOR="#F8F6E0"><FONT POINT-SIZE="11" COLOR="#5f5c10">fork</FONT></TD></TR></TABLE></TD></TR></TABLE>>];
+  gate [shape=point, width=0.03, color="#5b6b7d", pos="0,340"];
+  authlbl [shape=plaintext, pos="80,340", fontsize=12, fontcolor="#48227f", label="鉴权放行"];
+  wp1 [shape=point, width=0.01, style=invis, pos="180,215"];
+  wp2 [shape=point, width=0.01, style=invis, pos="-75,215"];
 
-  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.45", ranksep="0.55", compound=true];
-  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
-  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
-  u1 [label="GDB 调试器", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape="box"];
-  u2 [label="strace 跟踪器", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
-  subgraph cluster_user {
-    label="① 用户态工具链"; fontname="PingFang SC"; fontsize=14; fontcolor="#7a5200";
-    style="rounded,filled"; color="#C8881A"; fillcolor="#FFF3DC99"; penwidth=1.8; margin=14;
-    u1; u2;
-  }
-  s1 [label="sys_ptrace\n系统调用分发", fillcolor="#E7F0FF", color="#2F5FA8", fontcolor="#1d3a66"];
-  s2 [label="/proc 文件接口\nmaps · mem · auxv", fillcolor="#E7F0FF", color="#2F5FA8", fontcolor="#1d3a66"];
-  subgraph cluster_sys {
-    label="② Linux 兼容系统调用接口"; fontname="PingFang SC"; fontsize=14; fontcolor="#1d3a66";
-    style="rounded,filled"; color="#2F5FA8"; fillcolor="#E7F0FF99"; penwidth=1.8; margin=14;
-    s1; s2;
-  }
-  sec1 [label="ptrace_may_access\nUID/GID · CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
-  sec2 [label="Yama LSM\nptrace_scope 策略", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
-  sec3 [label="alien access 凭证\nRead/Attach · Fs/Real", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
-  subgraph cluster_sec {
-    label="③ 安全边界（统一鉴权）"; fontname="PingFang SC"; fontsize=14; fontcolor="#48227f";
-    style="rounded,filled"; color="#6F42C1"; fillcolor="#F1E9FF99"; penwidth=1.8; margin=14;
-    sec1; sec2; sec3;
-  }
-  c1 [label="tracer / tracee 关系\nArc + Weak · 固定锁序", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
-  c2 [label="ptrace-stop 主状态机\n保存现场 · 阻塞 · 恢复", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
-  c3 [label="resume 语义\nCONT · STEP · SYSCALL", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
-  subgraph cluster_core {
-    label="④ ptrace 核心状态机"; fontname="PingFang SC"; fontsize=14; fontcolor="#1c6035";
-    style="rounded,filled"; color="#2F9D57"; fillcolor="#E5F8EE99"; penwidth=1.8; margin=14;
-    c1; c2; c3;
-  }
-  e1 [label="signal", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
-  e2 [label="syscall", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
-  e3 [label="exec / exit", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
-  e4 [label="clone family", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
-  subgraph cluster_event {
-    label="⑤ 协作事件源（统一触发停止）"; fontname="PingFang SC"; fontsize=14; fontcolor="#5f5c10";
-    style="rounded,filled"; color="#9A9620"; fillcolor="#F8F6E099"; penwidth=1.8; margin=14;
-    e1; e2; e3; e4;
-  }
-  m1 [label="VMAR alien access\n跨进程内存读写", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
-  m2 [label="寄存器快照\nCUserRegsStruct · USER area", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
-  subgraph cluster_res {
-    label="⑥ 资源访问原语"; fontname="PingFang SC"; fontsize=14; fontcolor="#7d2723";
-    style="rounded,filled"; color="#C0463F"; fillcolor="#FFEAEA99"; penwidth=1.8; margin=14;
-    m1; m2;
-  }
-  w1 [label="wait / waitpid 报告\nTraceeStop · TraceeExit → wait4", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
-
-  u1 -> s1 [label="ptrace(2)"];
-  u2 -> s1 [label="ptrace(2)"];
-  u1 -> s2 [label="open/read"];  u2 -> s2;
-  s1 -> sec1; s2 -> sec1 [style=dashed];
-  sec1 -> c1; sec2 -> c1 [style=dashed]; sec3 -> m1 [style=dashed];
-  c1 -> c2; c2 -> c3 [dir=both];
-  e1 -> c2; e2 -> c2; e3 -> c2; e4 -> c2 [style=dashed, label="暂拒绝"];
-  c2 -> m1; c2 -> m2; s2 -> m1 [label="复用"];
-  c2 -> w1 [label="SIGCHLD"]; w1 -> u1 [style=dashed, constraint=false]; w1 -> u2 [style=dashed, constraint=false];
+  user -> sys [penwidth=2.6, color="#5b6b7d"];
+  sys -> gate [arrowhead=none, penwidth=2.6, color="#5b6b7d"];
+  gate -> sm [penwidth=2.6, color="#5b6b7d"];
+  perm:w -> gate [color="#6F42C1"];
+  sm -> alien [penwidth=2.2, color="#5b6b7d"];
+  sm -> reg [penwidth=2.2, color="#5b6b7d"];
+  sm -> cowork [penwidth=2.2, color="#5b6b7d"];
+  sm:pres:s -> wp1 [arrowhead=none, style=dashed, color="#2F9D57"];
+  wp1 -> wp2 [arrowhead=none, style=dashed, color="#2F9D57"];
+  wp2 -> sm:pstop:s [style=dashed, color="#2F9D57"];
 }

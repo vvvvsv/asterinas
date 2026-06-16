@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Generate polished framework diagrams (.dot -> .png) for the defense deck."""
-import os, subprocess, textwrap
+import os, subprocess, textwrap, math
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 os.makedirs(OUT, exist_ok=True)
@@ -42,62 +42,96 @@ def cluster(cid, label, kind, body, style="rounded,filled"):
             f'    style="{style}"; color="{border}"; fillcolor="{fill}99"; penwidth=1.8; margin=14;\n'
             f'{body}  }}\n')
 
-def render(name, dot, engine="dot"):
+def render(name, dot, engine="dot", extra_args=None):
     path = os.path.join(OUT, name + ".dot")
     with open(path, "w") as f:
         f.write(dot)
-    subprocess.run(["/opt/homebrew/bin/dot", f"-K{engine}", "-Tpng", "-Gdpi=150", path,
-                    "-o", os.path.join(OUT, name + ".png")], check=True)
+    cmd = ["/opt/homebrew/bin/dot", f"-K{engine}", "-Tpng", "-Gdpi=150"]
+    if extra_args:
+        cmd += extra_args
+    cmd += [path, "-o", os.path.join(OUT, name + ".png")]
+    subprocess.run(cmd, check=True)
     print("rendered", name)
 
 def wrap(dotbody, extra='rankdir=TB, nodesep="0.5", ranksep="0.6"'):
     return "digraph G {\n" + HEADER.replace("{extra}", extra) + dotbody + "}\n"
 
 # =====================================================================
-# 1. 总体架构：七层调试能力通路（精美分层框架）
+# 1. 总体架构：固定坐标（neato -n），位置写死；紧凑布局
 # =====================================================================
-b  = node("u1", "GDB 调试器", "user", shape="box")
-b += node("u2", "strace 跟踪器", "user")
-b += cluster("user", "① 用户态工具链", "user", "    u1; u2;\n")
+def _tbl(inner, border):
+    return (f'<TABLE BORDER="0" CELLBORDER="1" COLOR="{border}" '
+            f'CELLSPACING="3" CELLPADDING="3">{inner}</TABLE>')
 
-b += node("s1", "sys_ptrace\\n系统调用分发", "sys")
-b += node("s2", "/proc 文件接口\\nmaps · mem · auxv", "sys")
-b += cluster("sys", "② Linux 兼容系统调用接口", "sys", "    s1; s2;\n")
+def hblock(nid, title, kind, rows, pos):
+    fill, border, font = PAL[kind]
+    trs = ""
+    for row in rows:
+        tds = ""
+        for cell in row:
+            tds += (f'<TD BGCOLOR="{fill}"><FONT POINT-SIZE="11" COLOR="{font}">'
+                    + cell.replace("\n", "<BR/>") + "</FONT></TD>")
+        trs += f"<TR>{tds}</TR>"
+    label = ('<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0">'
+             f'<TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="{font}"><B>{title}</B></FONT></TD></TR>'
+             f'<TR><TD>{_tbl(trs, border)}</TD></TR></TABLE>>')
+    return (f'  {nid} [shape=box, style="rounded,filled", fillcolor="{fill}40", '
+            f'color="{border}", penwidth=1.6, pos="{pos}", label={label}];\n')
 
-b += node("sec1", "ptrace_may_access\\nUID/GID · CAP_SYS_PTRACE", "sec")
-b += node("sec2", "Yama LSM\\nptrace_scope 策略", "sec")
-b += node("sec3", "alien access 凭证\\nRead/Attach · Fs/Real", "sec")
-b += cluster("sec", "③ 安全边界（统一鉴权）", "sec", "    sec1; sec2; sec3;\n")
+def smblock(pos):
+    fill, border, font = PAL["core"]
+    cells = [("建立关系", "TRACEME / attach", ""), ("ptrace-stop", "保存现场, 阻塞", 'PORT="pstop"'),
+             ("wait 报告", "SIGCHLD &#8594; wait4", ""), ("resume", "CONT, STEP, SYSCALL", 'PORT="pres"')]
+    row = ""
+    for i, (a, c, port) in enumerate(cells):
+        row += f'<TD {port} BGCOLOR="{fill}"><FONT POINT-SIZE="11" COLOR="{font}">{a}<BR/>{c}</FONT></TD>'
+        if i < len(cells) - 1:
+            row += f'<TD BORDER="0"><FONT POINT-SIZE="12" COLOR="{font}">&#8594;</FONT></TD>'
+    spacer = f'<TR><TD COLSPAN="7" BORDER="0" HEIGHT="30"><FONT POINT-SIZE="11" COLOR="{font}">                              再停止（resume 后命中新 stop）</FONT></TD></TR>'
+    label = ('<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0">'
+             f'<TR><TD CELLPADDING="2"><FONT POINT-SIZE="13" COLOR="{font}"><B>④ tracer / tracee 状态机</B></FONT></TD></TR>'
+             f'<TR><TD>{_tbl(f"<TR>{row}</TR>" + spacer, border)}</TD></TR></TABLE>>')
+    return (f'  sm [shape=box, style="rounded,filled", fillcolor="{fill}33", '
+            f'color="{border}", penwidth=1.6, pos="{pos}", label={label}];\n')
 
-b += node("c1", "tracer / tracee 关系\\nArc + Weak · 固定锁序", "core")
-b += node("c2", "ptrace-stop 主状态机\\n保存现场 · 阻塞 · 恢复", "core")
-b += node("c3", "resume 语义\\nCONT · STEP · SYSCALL", "core")
-b += cluster("core", "④ ptrace 核心状态机", "core", "    c1; c2; c3;\n")
-
-b += node("e1", "signal", "event")
-b += node("e2", "syscall", "event")
-b += node("e3", "exec / exit", "event")
-b += node("e4", "clone family", "event")
-b += cluster("event", "⑤ 协作事件源（统一触发停止）", "event", "    e1; e2; e3; e4;\n")
-
-b += node("m1", "VMAR alien access\\n跨进程内存读写", "mem")
-b += node("m2", "寄存器快照\\nCUserRegsStruct · USER area", "mem")
-b += cluster("res", "⑥ 资源访问原语", "mem", "    m1; m2;\n")
-
-b += node("w1", "wait / waitpid 报告\\nTraceeStop · TraceeExit → wait4", "proc")
+b = ""
+b += hblock("user", "① USER APP（GDB / strace）", "user", [["GDB 调试器", "strace 跟踪器"]], "0,500")
+b += hblock("sys", "② 系统调用接口（Linux ABI）", "sys",
+            [["sys_ptrace\n系统调用分发", "/proc 文件接口\nmaps, mem, ..."]], "0,400")
+b += hblock("perm", "③ 权限检查（统一鉴权）", "sec",
+            [["Yama LSM\nptrace_scope 策略", "alien access 凭证\nRead/Attach, Fs/Real"]], "250,360")
+b += smblock("0,258")
+b += hblock("alien", "⑤ 跨进程用户空间读写", "mem",
+            [["底层实现\nVMAR alien access", "API\nptrace PEEK / POKE\n/proc/pid/mem"]], "-170,120")
+b += hblock("reg", "⑥ 寄存器上下文快照", "proc",
+            [["CUserRegsStruct\nUSER area", "字段级写策略\nrip/rsp/段寄存器 等"]], "80,120")
+b += hblock("cowork", "⑦ 与其他系统调用协作", "event",
+            [["signal", "wait", "clone"], ["exec", "exit", "fork"]], "285,120")
+b += '  gate [shape=point, width=0.03, color="#5b6b7d", pos="0,340"];\n'
+# 「鉴权放行」改成手动定位的文字节点（改下面 pos 的 x,y 即可挪动）
+b += '  authlbl [shape=plaintext, pos="80,340", fontsize=12, fontcolor="#48227f", label="鉴权放行"];\n'
+# 再停止的两个途径点（改 pos 调整曲线形状）
+b += '  wp1 [shape=point, width=0.01, style=invis, pos="180,215"];\n'
+b += '  wp2 [shape=point, width=0.01, style=invis, pos="-75,215"];\n'
 
 b += '''
-  u1 -> s1 [label="ptrace(2)"];
-  u2 -> s1 [label="ptrace(2)"];
-  u1 -> s2 [label="open/read"];  u2 -> s2;
-  s1 -> sec1; s2 -> sec1 [style=dashed];
-  sec1 -> c1; sec2 -> c1 [style=dashed]; sec3 -> m1 [style=dashed];
-  c1 -> c2; c2 -> c3 [dir=both];
-  e1 -> c2; e2 -> c2; e3 -> c2; e4 -> c2 [style=dashed, label="暂拒绝"];
-  c2 -> m1; c2 -> m2; s2 -> m1 [label="复用"];
-  c2 -> w1 [label="SIGCHLD"]; w1 -> u1 [style=dashed, constraint=false]; w1 -> u2 [style=dashed, constraint=false];
+  user -> sys [penwidth=2.6, color="#5b6b7d"];
+  sys -> gate [arrowhead=none, penwidth=2.6, color="#5b6b7d"];
+  gate -> sm [penwidth=2.6, color="#5b6b7d"];
+  perm:w -> gate [color="#6F42C1"];
+  sm -> alien [penwidth=2.2, color="#5b6b7d"];
+  sm -> reg [penwidth=2.2, color="#5b6b7d"];
+  sm -> cowork [penwidth=2.2, color="#5b6b7d"];
+  sm:pres:s -> wp1 [arrowhead=none, style=dashed, color="#2F9D57"];
+  wp1 -> wp2 [arrowhead=none, style=dashed, color="#2F9D57"];
+  wp2 -> sm:pstop:s [style=dashed, color="#2F9D57"];
 '''
-render("01_arch_overview", wrap(b, extra='rankdir=TB, nodesep="0.45", ranksep="0.55", compound=true'))
+dot1 = ('digraph G {\n'
+        f'  graph [fontname="{FONT}", bgcolor="white", pad="0.25", splines=true];\n'
+        f'  node [fontname="{FONT}"];\n'
+        f'  edge [fontname="{FONT}", arrowsize=0.85];\n'
+        + b + '}\n')
+render("01_arch_overview", dot1, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 2. ptrace 请求分发：入口薄、状态机厚
@@ -106,10 +140,10 @@ b  = node("g", "GDB / strace\\nptrace(request, tid, addr, data)", "user")
 b += node("p", "sys_ptrace 解析 PtraceRequest", "sys")
 b += node("attach", "TRACEME\\n建立 tracer/tracee 关系\\n+ 权限检查", "sec")
 b += node("look", "get_tracee(tid)\\n校验追踪关系", "core")
-b += node("mem", "PEEK/POKE TEXT·DATA\\n读写 tracee 内存", "mem")
-b += node("ua",  "PEEK/POKE USER · GET/SETREGS\\n寄存器与 USER area", "mem")
-b += node("cont","CONT · SINGLESTEP · SYSCALL\\n注入信号 + 恢复运行", "core")
-b += node("opt", "SETOPTIONS · GETEVENTMSG · GETSIGINFO\\n事件与 siginfo", "event")
+b += node("mem", "PEEK/POKE TEXT, DATA\\n读写 tracee 内存", "mem")
+b += node("ua",  "PEEK/POKE USER, GET/SETREGS\\n寄存器与 USER area", "mem")
+b += node("cont","CONT, SINGLESTEP, SYSCALL\\n注入信号 + 恢复运行", "core")
+b += node("opt", "SETOPTIONS, GETEVENTMSG, GETSIGINFO\\n事件与 siginfo", "event")
 b += '''
   g -> p; p -> attach; p -> look;
   look -> mem; look -> ua; look -> cont; look -> opt;
@@ -122,7 +156,7 @@ render("02_ptrace_dispatch", wrap(b, extra='rankdir=LR, nodesep="0.4", ranksep="
 b  = node("tracer", "Tracer 线程\\n(GDB 主线程)", "user")
 b += node("map", "tracees: BTreeMap&lt;Tid, Arc&lt;Thread&gt;&gt;\\n强引用持有 tracee", "core")
 b += node("tracee", "Tracee 线程\\n(被调试进程)", "proc")
-b += node("status", "TraceeStatus\\nis_stopped · state", "core")
+b += node("status", "TraceeStatus\\nis_stopped, state", "core")
 b += node("back", "TraceeState.tracer: Weak&lt;Thread&gt;\\n反向弱引用（打破环）", "mem")
 b += '''
   tracer -> map [label="持有"];
@@ -257,7 +291,7 @@ steps = [
     ("b10","⑩ 重新写回 int3"),
     ("b11","⑪ CONT 继续"),
 ]
-b = node("hub0", "软件断点闭环\\n（非独立模块·原语组合）", "sec", penwidth="2.4", fontsize="14")
+b = node("hub0", "软件断点闭环\\n（非独立模块、原语组合）", "sec", penwidth="2.4", fontsize="14")
 kinds = ["proc","mem","mem","event","core","proc","core","mem","core","mem","user"]
 for (nid,lab),k in zip(steps,kinds):
     b += node(nid, lab, k)
@@ -293,10 +327,10 @@ b += '''
   subgraph cluster_scope {
     label="Yama ptrace_scope"; fontname="''' + FONT + '''"; fontsize=13; fontcolor="#48227f";
     style="rounded,filled"; color="#6F42C1"; fillcolor="#F1E9FF99"; margin=12;
-    y0 [label="0 Disabled · 不额外限制", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
-    y1 [label="1 Relational（默认）· 仅祖先 / CAP", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
-    y2 [label="2 Capability · 仅 CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
-    y3 [label="3 NoAttach · 全禁，设置后不可降级", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
+    y0 [label="0 Disabled、不额外限制", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
+    y1 [label="1 Relational（默认）、仅祖先 / CAP", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
+    y2 [label="2 Capability、仅 CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
+    y3 [label="3 NoAttach、全禁，设置后不可降级", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
     y0 -> y1 -> y2 -> y3 [style=invis];
   }
 '''
@@ -306,12 +340,12 @@ render("10_security_model", wrap(b, extra='rankdir=TB, nodesep="0.45", ranksep="
 # 11. 实现进度时间线（里程碑）
 # =====================================================================
 milestones = [
-    ("04.23", "procfs 视图 + 安全地基", "/proc maps·mem·auxv·tid\\nforce-write · access check · Yama · tkill", "proc"),
-    ("04.26", "ptrace 最小闭环", "syscall 框架 · TRACEME · CONT\\nptrace-stop · wait 整合 · exec SIGTRAP", "core"),
-    ("05.14", "寄存器与单步", "GET/SETREGS · PEEK/POKEUSER\\nSINGLESTEP · 断点 · GETSIGINFO/KILL", "mem"),
-    ("05.18", "options 与 event-stop", "SETOPTIONS · GETEVENTMSG\\nEXEC/EXIT event · EXITKILL", "event"),
-    ("05.21", "ABI 对齐 + GDB CI", "USER_CS/SS 对齐 · debug regs 仿真\\npersonality · GDB 文档/CI", "sec"),
-    ("05.28", "syscall 跟踪 + strace", "PTRACE_SYSCALL · TRACESYSGOOD\\nPEEK/POKE TEXT·DATA · strace CI", "user"),
+    ("04.23", "procfs 视图 + 安全地基", "/proc maps, mem, tid 等\\nforce-write, access check, Yama, tkill", "proc"),
+    ("04.26", "ptrace 最小闭环", "syscall 框架、TRACEME, CONT\\nptrace-stop, wait 整合、exec SIGTRAP", "core"),
+    ("05.14", "寄存器与单步", "GET/SETREGS, PEEK/POKEUSER\\nSINGLESTEP、断点、GETSIGINFO/KILL", "mem"),
+    ("05.18", "options 与 event-stop", "SETOPTIONS, GETEVENTMSG\\nEXEC/EXIT event, EXITKILL", "event"),
+    ("05.21", "ABI 对齐 + GDB CI", "USER_CS/SS 对齐、debug regs 仿真\\npersonality, GDB 文档/CI", "sec"),
+    ("05.28", "syscall 跟踪 + strace", "PTRACE_SYSCALL, TRACESYSGOOD\\nPEEK/POKE TEXT, DATA, strace CI", "user"),
 ]
 b = ""
 for i,(date,title,detail,k) in enumerate(milestones):
@@ -328,10 +362,10 @@ render("11_timeline", wrap(b, extra='rankdir=TB, nodesep="0.5", ranksep="0.9"'))
 # =====================================================================
 # 12. 测试与验证金字塔
 # =====================================================================
-b  = node("t4", "真实工具链验收\\n真实 GDB（断点/回溯/单步/改内存）· strace", "user", penwidth="2.4", fontsize="14")
-b += node("t3", "兼容性测试\\ngVisor ptrace_test · 以 ABI 行为为准", "sec")
-b += node("t2", "集成 / 回归测试\\ndebugger·debuggee · PTRACE_SYSCALL · proc mem/maps · Yama", "core")
-b += node("t1", "单元测试\\nptrace.c · read_write_regs.c · set_options.c", "proc")
+b  = node("t4", "真实工具链验收\\n真实 GDB（断点/回溯/单步/改内存）、strace", "user", penwidth="2.4", fontsize="14")
+b += node("t3", "兼容性测试\\ngVisor ptrace_test、以 ABI 行为为准", "sec")
+b += node("t2", "集成 / 回归测试\\ndebugger, debuggee, PTRACE_SYSCALL, proc mem/maps, Yama", "core")
+b += node("t1", "单元测试\\nptrace.c, read_write_regs.c, set_options.c", "proc")
 b += '''
   t1 -> t2 -> t3 -> t4 [dir=none];
 '''
@@ -348,8 +382,8 @@ rows = [
     ("启动并追踪", "TRACEME / 父子关系", "core"),
     ("exec 后接管", "exec event / SIGTRAP", "event"),
     ("设置/命中断点", "POKETEXT + #BP→SIGTRAP", "mem"),
-    ("查看/改寄存器", "GET/SETREGS · USER area", "mem"),
-    ("查看/改内存", "PEEK/POKE · /proc/pid/mem", "mem"),
+    ("查看/改寄存器", "GET/SETREGS, USER area", "mem"),
+    ("查看/改内存", "PEEK/POKE, /proc/pid/mem", "mem"),
     ("单步/继续/跟踪", "SINGLESTEP/CONT/SYSCALL", "core"),
     ("等待状态变化", "wait/waitpid/wait4", "proc"),
     ("限制非法调试", "access check + Yama LSM", "sec"),
@@ -367,4 +401,37 @@ b += "  { rank=same; " + " ".join(f"a{i};" for i in range(len(rows))) + " }\n"
 b += "  { rank=same; " + " ".join(f"c{i};" for i in range(len(rows))) + " }\n"
 render("13_req_decompose", wrap(b, extra='rankdir=LR, nodesep="0.22", ranksep="1.2", compound=true'))
 
+# =====================================================================
+# 0. 研究背景：需求（上）-> 调试能力（中心）-> 一圈内核子系统（真、环形）
+# =====================================================================
+ring = [   # (id, label, kind, angle°)  —— 跳过正上方 90°，留给需求箭头
+    ("r3", "wait/waitpid\\n状态报告", "proc", 0),       # 右
+    ("r2", "ptrace 状态机\\n信号拦截 + 投递", "event", 45),  # 右上
+    ("r7", "procfs 视图\\nmaps, mem, ...", "proc", 135),  # 左上
+    ("r6", "安全策略\\n权限检查, Yama", "sec", 180),       # 左
+    ("r5", "寄存器上下文\\nuser_regs, 单步", "mem", 225),  # 左下
+    ("r4", "地址空间\\nVMAR 跨进程", "mem", 270),         # 下
+    ("r1", "进程管理\\nfork, exec, exit", "sys", 315),    # 右下
+]
+R = 185.0                     # 环半径（pt）
+YS = 0.72                      # 纵向压扁，减少竖向留白
+parts = ['digraph G {',
+         f'  graph [fontname="{FONT}", bgcolor="white", pad="0.2", splines=true];',
+         f'  node  [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.13,0.07", fontsize=13];',
+         f'  edge  [fontname="{FONT}", penwidth=1.5, arrowsize=0.9];']
+# 中心 + 需求（正上方）
+parts.append(node("hub", "进程调试能力", "core", penwidth="2.8", fontsize="18", pos='0,0'))
+parts.append(node("need", "面向开发者的操作系统\\n需要支持用户态调试", "user",
+                  penwidth="2.4", fontsize="14", pos=f'0,{R*YS+50:.0f}'))
+for (nid, lab, k, a) in ring:
+    x = -R * math.cos(math.radians(a))   # 取负：左右镜像 → 旋转方向倒转
+    y = R * math.sin(math.radians(a)) * YS
+    parts.append(node(nid, lab, k, pos=f'{x:.0f},{y:.0f}'))
+parts.append(f'  need -> hub [color="#C8881A", penwidth=2.6];')
+for (nid, _, _, _) in ring:
+    parts.append(f'  hub -> {nid} [color="#2F9D57"];')
+parts.append('}')
+render("00_background", "\n".join(parts), engine="neato", extra_args=["-n1"])
+
 print("ALL DONE ->", OUT)
+

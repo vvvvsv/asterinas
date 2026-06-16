@@ -1,0 +1,31 @@
+digraph G {
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.2", splines=true];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.13,0.07", fontsize=13];
+  edge  [fontname="PingFang SC", penwidth=1.5, arrowsize=0.9];
+  hub [label="进程调试能力", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", penwidth="2.8", fontsize="18", pos="0,0"];
+
+  need [label="面向开发者的操作系统\n需要支持用户态调试", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", penwidth="2.4", fontsize="14", pos="0,183"];
+
+  r3 [label="wait/waitpid\n状态报告", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="-185,0"];
+
+  r2 [label="ptrace 状态机\n信号拦截 + 投递", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", pos="-131,94"];
+
+  r7 [label="procfs 视图\nmaps, mem, ...", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="131,94"];
+
+  r6 [label="安全策略\n权限检查, Yama", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", pos="185,0"];
+
+  r5 [label="寄存器上下文\nuser_regs, 单步", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="131,-94"];
+
+  r4 [label="地址空间\nVMAR 跨进程", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="0,-133"];
+
+  r1 [label="进程管理\nfork, exec, exit", fillcolor="#E7F0FF", color="#2F5FA8", fontcolor="#1d3a66", pos="-131,-94"];
+
+  need -> hub [color="#C8881A", penwidth=2.6];
+  hub -> r3 [color="#2F9D57"];
+  hub -> r2 [color="#2F9D57"];
+  hub -> r7 [color="#2F9D57"];
+  hub -> r6 [color="#2F9D57"];
+  hub -> r5 [color="#2F9D57"];
+  hub -> r4 [color="#2F9D57"];
+  hub -> r1 [color="#2F9D57"];
+}
