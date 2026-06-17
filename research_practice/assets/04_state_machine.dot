@@ -1,21 +1,36 @@
 digraph G {
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.3", splines=true];
+  node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  untraced [label="未被跟踪", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f", pos="0,360"];
+  attached [label="已建立 trace 关系", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="0,240"];
+  sig [label="信号投递停\nsignal-delivery-stop\n不拦截 SIGKILL", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", pos="180,320"];
+  sys [label="系统调用停\nsyscall-stop (entry/exit)\nPTRACE_SYSCALL", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", pos="180,240"];
+  evt [label="ptrace 事件停\nptrace-event-stop\nPTRACE_SETOPTIONS", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", pos="180,160"];
+  stopped [label="ptrace-stop\n统一抽象 do_ptrace_stop()\n保存寄存器现场\n记录信号、事件、wait status\n投递 SIGCHLD 通知 tracer\n阻塞 tracee，等待 tracer 指示", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", penwidth="2.6", fontsize="14", pos="420,240"];
+  reported [label="tracer 调用 wait 报告\nLinux 风格 wait4 状态字", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="740,380"];
+  running [label="resume 恢复运行\n回写寄存器快照\n按需设置单步执行", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="740,240"];
+  exited [label="退出 / 清理\nTraceeExit + detach", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="740,120"];
+  loopwp [shape=point, width=0.01, style=invis, pos="600,240"];
+  t_attach [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#3a4a5c", pos="0,300", label="TRACEME / attach"];
+  t_sigchld [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#3a4a5c", pos="585,325", label="SIGCHLD 唤醒"];
+  t_cont [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#3a4a5c", pos="740,318", label="tracer continue"];
+  t_loop [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#3a4a5c", pos="595,240", label="下一次
+停止条件"];
+  t_kill [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#3a4a5c", pos="585,160", label="SIGKILL 打断"];
+  t_exit [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#3a4a5c", pos="740,180", label="exit"];
 
-  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.5", ranksep="0.7"];
-  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
-  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
-  untraced [label="未被跟踪", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f", shape="ellipse"];
-  attached [label="已建立 trace 关系", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape="ellipse"];
-  stopped [label="ptrace-stop\n保存寄存器现场\n记录信号/事件 + wait status\nis_stopped = true", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape="ellipse"];
-  reported [label="wait 报告\nSIGCHLD(CLD_TRAPPED)", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", shape="ellipse"];
-  running [label="恢复运行\n回写寄存器快照\nis_stopped = false", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape="ellipse"];
-  exited [label="退出 / 清理\nTraceeExit + detach", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", shape="ellipse"];
-
-  untraced -> attached [label="TRACEME / attach"];
-  attached -> stopped [label="signal / syscall / exec / exit"];
-  stopped -> reported [label="SIGCHLD + 唤醒 wait"];
-  reported -> stopped [label="WNOWAIT / 尚未 continue", style=dashed, constraint=false];
-  stopped -> running [label="CONT / SINGLESTEP / SYSCALL"];
-  running -> stopped [label="下一次停止条件", constraint=false];
-  stopped -> exited [label="SIGKILL 打断 / exit"];
-  running -> exited [label="exit"];
+  untraced -> attached;
+  attached -> sig:w  [color="#9A9620"];
+  attached -> sys:w  [color="#9A9620"];
+  attached -> evt:w  [color="#9A9620"];
+  sig:e -> stopped [color="#9A9620"];
+  sys:e -> stopped [color="#9A9620"];
+  evt:e -> stopped [color="#9A9620"];
+  stopped:ne -> reported;
+  reported -> running;
+  running:w -> loopwp [arrowhead=none];
+  loopwp -> stopped:e;
+  stopped:se -> exited;
+  running -> exited;
 }

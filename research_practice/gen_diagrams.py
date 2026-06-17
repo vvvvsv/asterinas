@@ -173,45 +173,58 @@ b += '''
 render("03_tracer_tracee", wrap(b, extra='rankdir=LR, nodesep="0.6", ranksep="0.9"'))
 
 # =====================================================================
-# 4. ptrace-stop 主状态机（生命周期）
+# 4. ptrace-stop 主状态机（生命周期 + 三类停止统一收敛）
+#    固定坐标（neato -n1）：改下面每个节点的 pos="x,y" 即可挪动方框
+#    线上不写 label，所有文字都用单独的白底文本框（tlabel），位置可单独微调
 # =====================================================================
-b  = node("untraced", "未被跟踪", "ink", shape="ellipse")
-b += node("attached", "已建立 trace 关系", "user", shape="ellipse")
-b += node("stopped", "ptrace-stop\\n保存寄存器现场\\n记录信号/事件 + wait status\\nis_stopped = true", "core", shape="ellipse")
-b += node("reported", "wait 报告\\nSIGCHLD(CLD_TRAPPED)", "proc", shape="ellipse")
-b += node("running", "恢复运行\\n回写寄存器快照\\nis_stopped = false", "user", shape="ellipse")
-b += node("exited", "退出 / 清理\\nTraceeExit + detach", "mem", shape="ellipse")
-b += '''
-  untraced -> attached [label="TRACEME / attach"];
-  attached -> stopped [label="signal / syscall / exec / exit"];
-  stopped -> reported [label="SIGCHLD + 唤醒 wait"];
-  reported -> stopped [label="WNOWAIT / 尚未 continue", style=dashed, constraint=false];
-  stopped -> running [label="CONT / SINGLESTEP / SYSCALL"];
-  running -> stopped [label="下一次停止条件", constraint=false];
-  stopped -> exited [label="SIGKILL 打断 / exit"];
-  running -> exited [label="exit"];
-'''
-render("04_state_machine", wrap(b, extra='rankdir=LR, nodesep="0.5", ranksep="0.7"'))
+def tlabel(nid, text, pos, color="#3a4a5c"):
+    return (f'  {nid} [shape=box, style="filled", fillcolor="white", color="white", '
+            f'penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="{color}", '
+            f'pos="{pos}", label="{text}"];\n')
 
-# =====================================================================
-# 5. 三类停止统一收敛到 do_ptrace_stop
-# =====================================================================
-b  = node("sig", "信号投递停\\nsignal-delivery-stop\\n出队非 SIGKILL 信号", "event")
-b += node("sys", "系统调用停\\nsyscall entry / exit\\nTRACESYSGOOD 编码", "event")
-b += node("evt", "事件停\\nexec / exit event-stop\\n受 PtraceOptions 控制", "event")
-b += node("hub", "do_ptrace_stop()\\n① 保存寄存器现场\\n② 记录信号/事件 + wait status\\n③ 投递 SIGCHLD 通知 tracer\\n④ 阻塞 tracee（StopByPtrace）\\n⑤ resume 后回写并返回", "core",
-          shape="box", penwidth="2.4", fontsize="14")
-b += node("wait", "tracer 看到 Linux 风格\\nwait4 状态字", "proc")
+# 生命周期主干（圆角矩形）+ 三类停止来源，全部写死坐标
+b  = node("untraced", "未被跟踪", "ink", pos="0,360")
+b += node("attached", "已建立 trace 关系", "user", pos="0,240")
+b += node("sig", "信号投递停\\nsignal-delivery-stop\\n不拦截 SIGKILL", "event", pos="180,320")
+b += node("sys", "系统调用停\\nsyscall-stop (entry/exit)\\nPTRACE_SYSCALL", "event", pos="180,240")
+b += node("evt", "ptrace 事件停\\nptrace-event-stop\\nPTRACE_SETOPTIONS", "event", pos="180,160")
+b += node("stopped",
+          "ptrace-stop\\n统一抽象 do_ptrace_stop()\\n保存寄存器现场\\n记录信号、事件、wait status\\n投递 SIGCHLD 通知 tracer\\n阻塞 tracee，等待 tracer 指示",
+          "core", penwidth="2.6", fontsize="14", pos="420,240")
+b += node("reported", "tracer 调用 wait 报告\\nLinux 风格 wait4 状态字", "proc", pos="740,380")
+b += node("running", "resume 恢复运行\\n回写寄存器快照\\n按需设置单步执行", "user", pos="740,240")
+b += node("exited", "退出 / 清理\\nTraceeExit + detach", "mem", pos="740,120")
+# 「下一次停止条件」回环的中间途径点（改 pos 调整这条线的高度/弯度）
+b += '  loopwp [shape=point, width=0.01, style=invis, pos="600,240"];\n'
+# 线上的文字 —— 单独文本框，改各自 pos 即可移动
+b += tlabel("t_attach",  "TRACEME / attach", "0,300")
+b += tlabel("t_sigchld", "SIGCHLD 唤醒", "585,325")
+b += tlabel("t_cont",    "tracer continue", "740,318")
+b += tlabel("t_loop",    "下一次\n停止条件", "595,240")
+b += tlabel("t_kill",    "SIGKILL 打断", "585,160")
+b += tlabel("t_exit",    "exit", "740,180")
+
 b += '''
-  sig -> hub; sys -> hub; evt -> hub;
-  hub -> wait [label="统一出口"];
-  { rank=same; sig; sys; evt; }
+  untraced -> attached;
+  attached -> sig:w  [color="#9A9620"];
+  attached -> sys:w  [color="#9A9620"];
+  attached -> evt:w  [color="#9A9620"];
+  sig:e -> stopped [color="#9A9620"];
+  sys:e -> stopped [color="#9A9620"];
+  evt:e -> stopped [color="#9A9620"];
+  stopped:ne -> reported;
+  reported -> running;
+  running:w -> loopwp [arrowhead=none];
+  loopwp -> stopped:e;
+  stopped:se -> exited;
+  running -> exited;
 '''
-b += '''
-  note [shape=note, fontsize=12, fontname="''' + FONT + '''", fillcolor="#E5F8EE", color="#2F9D57", style="filled",
-        label="设计取舍：ptrace-stop 不另造调度语义，\\n复用既有 signal 与 wait 路径"];
-'''
-render("05_three_stops", wrap(b, extra='rankdir=TB, nodesep="0.45", ranksep="0.7"'))
+dot4 = ('digraph G {\n'
+        f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+        f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];\n'
+        f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
+        + b + '}\n')
+render("04_state_machine", dot4, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 6. StopDeliverySignal 四态机 + resume
