@@ -249,40 +249,36 @@ render("06_signal_states", wrap(b, extra='rankdir=LR, nodesep="0.3", ranksep="0.
 # 7. 跨进程内存访问：VMAR alien access（不切换页表）
 # =====================================================================
 b = ""
-# two sources at top
-b += node("src1", "ptrace PEEK / POKE", "user", pos="190,560")
-b += node("src2", "/proc/&lt;pid&gt;/mem", "user", pos="450,560")
-# converge into check
-b += node("chk", "权限 + 停止态检查", "sec", pos="320,460")
-# entry primitive
-b += node("entry", "read_alien / write_alien / fill_zeros_alien\\n统一收敛到 access_alien() 原语", "core", pos="320,360")
-# query (人话：不提 VmSpace 等类型名)
-b += node("query", "query_page_with_required_flags\\n按页查询目标进程的地址空间映射、权限\\n（不切换页表、不切换地址空间）", "core", pos="320,250")
-# branches
-b += node("frame", "命中物理页帧\\n直接拷贝数据", "mem", pos="110,95")
-b += node("fault", "缺页 / 权限不足\\n主动触发缺页处理后重试", "event", pos="565,95")
+# 主干（竖直）：两入口 -> 原语 -> query -> 命中拷贝
+b += node("src1", "ptrace PEEK/POKE", "user", pos="170,555")
+b += node("src2", "/proc/&lt;pid&gt;/mem", "user", pos="350,555")
+b += node("entry", "跨进程地址空间访问\\n统一抽象 access_alien()", "core", pos="260,485")
+b += node("query", "逐页查询目标地址空间页表\\n的映射与权限（不真正切换页表）", "core", pos="260,410")
+b += node("frame", "命中物理页帧\\n直接拷贝数据", "core", pos="110,300")
+# 缺页侧列（右，等距向下），处理后回到 query
+b += node("fcond", "页面缺失 / 权限不足", "mem", pos="520,410")
+b += node("fmake", "伪造一次对该地址的缺页", "event", pos="520,350")
+b += node("fhandle", "复用内核真实缺页处理\\nhandle_page_fault", "core", pos="520,280")
 
-# spine
-b += "  src1:s -> chk:nw;\n"
-b += "  src2:s -> chk:ne;\n"
-b += "  chk:s -> entry:n;\n"
+# 入口漏斗 -> 原语 -> query
+b += "  src1:s -> entry;\n"
+b += "  src2:s -> entry;\n"
 b += "  entry:s -> query:n;\n"
-# clean symmetric branch: query:s -> junction -> frame / fault
-b += '  jct [shape=point, width=0.01, style=invis, pos="320,180"];\n'
-b += '  query:s -> jct [arrowhead=none, color="#5b6b7d"];\n'
-b += '  jct -> frame:ne [color="#2F9D57"];\n'
-b += '  jct -> fault:nw [color="#C0463F"];\n'
-# retry loop: out fault east, up, back into query east（直角，不交叉）
-b += '  wp1 [shape=point, width=0.01, style=invis, pos="710,95"];\n'
-b += '  wp2 [shape=point, width=0.01, style=invis, pos="710,250"];\n'
-b += '  fault:e -> wp1 [arrowhead=none, color="#C0463F", style=dashed];\n'
-b += '  wp1 -> wp2 [arrowhead=none, color="#C0463F", style=dashed];\n'
-b += '  wp2 -> query:e [color="#C0463F", style=dashed];\n'
+# 命中：query 左下出，到命中物理页帧
+b += '  query:w -> frame:n [color="#2F9D57"];\n'
+# 未命中：query 右出，进入缺页侧列
+b += '  query:e -> fcond:w [color="#C0463F"];\n'
+b += '  fcond:s -> fmake:n [color="#5b6b7d"];\n'
+b += '  fmake:s -> fhandle:n [color="#5b6b7d"];\n'
+# 重试（实线，直角：底部回到左侧，沿命中框右侧的竖线上行进入 query 底部）
+b += '  wr1 [shape=point, width=0.01, style=invis, pos="260,280"];\n'
+b += '  fhandle:w -> wr1 [arrowhead=none, color="#5b6b7d"];\n'
+b += '  wr1 -> query:s [color="#5b6b7d"];\n'
 
-# labels (separate white-bg text boxes)
-b += tlabel("l_frame", "映射存在且权限满足", "225,150", color="#1c6035")
-b += tlabel("l_fault", "需要处理", "405,150", color="#7d2723")
-b += tlabel("l_retry", "重试", "710,175", color="#7d2723")
+# 文本标签
+b += tlabel("l_hit", "页表命中", "162,353", color="#1c6035")
+b += tlabel("l_miss", "未命中", "410,431", color="#7d2723")
+b += tlabel("l_retry", "处理完重试", "325,302", color="#3a4a5c")
 
 dot7 = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
