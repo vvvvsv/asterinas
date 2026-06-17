@@ -229,10 +229,10 @@ render("04_state_machine", dot4, engine="neato", extra_args=["-n1"])
 # =====================================================================
 # 6. StopDeliverySignal 四态机 + resume
 # =====================================================================
-b  = node("empty", "Empty\\n无停止信号", "ink", shape="ellipse")
-b += node("pending", "Pending\\n等待 wait 观察", "event", shape="ellipse")
-b += node("consumed", "Consumed\\nwait 已报告", "proc", shape="ellipse")
-b += node("injected", "Injected\\ntracer 注入新信号", "mem", shape="ellipse")
+b  = node("empty", "Empty\\n无停止信号", "ink")
+b += node("pending", "Pending\\n等待 wait 观察", "event")
+b += node("consumed", "Consumed\\nwait 已报告", "proc")
+b += node("injected", "Injected\\ntracer 注入新信号", "mem")
 b += '''
   empty -> pending [label="ptrace-stop: stop()"];
   pending -> consumed [label="wait（非 WNOWAIT）"];
@@ -243,11 +243,7 @@ b += '''
   consumed -> empty [label="resume 抑制"];
   injected -> empty [label="信号投递后清空"];
 '''
-b += '''
-  note [shape=note, fontsize=12, fontname="''' + FONT + '''", fillcolor="#FFF8E6", color="#C8881A", style="filled",
-        label="四态保证：同一停止不被 wait 重复报告；\\nwait 返回后信号不丢失；\\ntracer 仍可在 CONT 时替换 / 注入 / 抑制"];
-'''
-render("06_signal_states", wrap(b, extra='rankdir=LR, nodesep="0.55", ranksep="0.8"'))
+render("06_signal_states", wrap(b, extra='rankdir=LR, nodesep="0.3", ranksep="0.5"'))
 
 # =====================================================================
 # 7. 跨进程内存访问：VMAR alien access（不切换页表）
@@ -295,27 +291,27 @@ render("07_mem_access", dot7, engine="neato", extra_args=["-n1"])
 # =====================================================================
 # 8. x86-64 寄存器 ABI：字段级写策略
 # =====================================================================
-# 5 wide boxes; spacing 350, shifted right so leftmost box clears the edge
-xs = [180, 530, 880, 1230, 1580]
+# 5 wide boxes; spacing 150, shifted right so leftmost box clears the edge
+xs = [580, 730, 880, 1030, 1180]
 cx = sum(xs)/len(xs)   # center x = 880
 yrow = 230             # row of 5 boxes
-ytop = 640             # trap
-ysnap = 490
-yrule = 360
-ywb = 40
-ybus = 130             # horizontal merge bus just below the 5 boxes
+ytop = 480             # trap
+ysnap = 400
+yrule = 320
+ywb = 130
+ybus = 180             # horizontal merge bus just below the 5 boxes
 
-b  = node("trap", "tracee 陷入内核\\nsignal / syscall / exec / exit", "user", pos=f"{cx},{ytop}")
-b += node("snap", "进入 ptrace-stop\\n复制 GeneralRegs + orig_rax 到快照", "core", pos=f"{cx},{ysnap}")
-b += node("rule", "CUserRegsStruct + REG_RULES\\n字段级访问策略", "sec", penwidth="2.4", pos=f"{cx},{yrule}")
+b  = node("trap", "tracee 陷入内核\\n保存用户寄存器上下文", "user", pos=f"{cx},{ytop}")
+b += node("snap", "进入 ptrace-stop\\n持锁复制用户寄存器上下文到寄存器快照", "core", pos=f"{cx},{ysnap}")
+b += node("rule", "tracer 持锁修改寄存器快照\\n字段级访问策略", "sec", penwidth="2.4", pos=f"{cx},{yrule}")
 
-b += node("set",   "rax..r15 → Set\\n自由修改",            "mem", pos=f"{xs[0]},{yrow}")
-b += node("setif", "rip/rsp/fs/gsbase → SetIf\\n必须是用户地址", "mem", pos=f"{xs[1]},{yrow}")
-b += node("trunc", "rflags → SetBitsTruncate\\n仅用户态可控位", "mem", pos=f"{xs[2]},{yrow}")
-b += node("fixed", "cs/ss/ds/es → Fixed\\n匹配 Linux 段不变量",  "mem", pos=f"{xs[3]},{yrow}")
-b += node("dbg",   "debug regs → 读默认值\\n写返回 EOPNOTSUPP",  "mem", pos=f"{xs[4]},{yrow}")
+b += node("set",   "rax..r15\\ntracer 自由修改",            "mem", pos=f"{xs[0]},{yrow}")
+b += node("setif", "rip/rsp/fs/gsbase\\n必须是用户地址", "mem", pos=f"{xs[1]},{yrow}")
+b += node("trunc", "rflags\\n仅能写用户态可控位", "mem", pos=f"{xs[2]},{yrow}")
+b += node("fixed", "cs/ss/ds/es\\n只读, 和 Linux 一致",  "mem", pos=f"{xs[3]},{yrow}")
+b += node("dbg",   "debug regs\\n只读, 未来支持写入",  "mem", pos=f"{xs[4]},{yrow}")
 
-b += node("wb", "tracee 唤醒\\n快照写回 UserContext", "core", pos=f"{cx},{ywb}")
+b += node("wb", "tracee 唤醒\\n快照写回寄存器上下文", "core", pos=f"{cx},{ywb}")
 
 # horizontal merge bus: a point under each box + a center trunk junction
 for i,x in enumerate(xs):
