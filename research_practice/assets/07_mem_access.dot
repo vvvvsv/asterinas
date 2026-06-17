@@ -1,19 +1,26 @@
 digraph G {
-
-  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.45", ranksep="0.7"];
-  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
-  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
-  src1 [label="ptrace PEEK / POKE", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
-  src2 [label="/proc/&lt;pid&gt;/mem", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
-  chk [label="权限 + 停止态检查", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
-  entry [label="read_alien / write_alien / fill_zeros_alien\n→ access_alien() 统一原语", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
-  query [label="query_page_with_required_flags\n在目标 VmSpace 按页查询映射/权限\n（不切换地址空间）", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
-  frame [label="命中 RAM UFrame\nframe.reader()/writer() 直接拷贝", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
-  fault [label="缺页 / 权限不足\nhandle_page_fault(.force()) 后重试", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10"];
-
-  src1 -> chk; src2 -> chk;
-  chk -> entry -> query;
-  query -> frame [label="映射存在且权限满足", color="#2F9D57"];
-  query -> fault [label="需要处理", color="#C0463F"];
-  fault -> query [label="重试", style=dashed, constraint=false];
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.3", splines=true];
+  node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  src1 [label="ptrace PEEK / POKE", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="190,560"];
+  src2 [label="/proc/&lt;pid&gt;/mem", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="450,560"];
+  chk [label="权限 + 停止态检查", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", pos="320,460"];
+  entry [label="read_alien / write_alien / fill_zeros_alien\n统一收敛到 access_alien() 原语", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="320,360"];
+  query [label="query_page_with_required_flags\n在目标 VmSpace 按页查询映射、权限\n（不切换地址空间）", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="320,250"];
+  frame [label="命中 RAM UFrame\nframe.reader()/writer() 直接拷贝", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="140,110"];
+  fault [label="缺页 / 权限不足\nhandle_page_fault(.force()) 后重试", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", pos="560,110"];
+  src1:s -> chk:nw [arrowhead=normal];
+  src2:s -> chk:ne [arrowhead=normal];
+  chk:s -> entry:n;
+  entry:s -> query:n;
+  query:sw -> frame:n [color="#2F9D57"];
+  query:se -> fault:n [color="#C0463F"];
+  wp1 [shape=point, width=0.01, style=invis, pos="720,110"];
+  wp2 [shape=point, width=0.01, style=invis, pos="720,250"];
+  fault:e -> wp1 [arrowhead=none, color="#C0463F", style=dashed];
+  wp1 -> wp2 [arrowhead=none, color="#C0463F", style=dashed];
+  wp2 -> query:e [color="#C0463F", style=dashed];
+  l_frame [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#1c6035", pos="170,185", label="映射存在且权限满足"];
+  l_fault [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#7d2723", pos="490,185", label="需要处理"];
+  l_retry [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#7d2723", pos="720,185", label="重试"];
 }

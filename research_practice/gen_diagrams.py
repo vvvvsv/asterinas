@@ -252,141 +252,334 @@ render("06_signal_states", wrap(b, extra='rankdir=LR, nodesep="0.55", ranksep="0
 # =====================================================================
 # 7. 跨进程内存访问：VMAR alien access（不切换页表）
 # =====================================================================
-b  = node("src1", "ptrace PEEK / POKE", "user")
-b += node("src2", "/proc/&lt;pid&gt;/mem", "user")
-b += node("chk", "权限 + 停止态检查", "sec")
-b += node("entry", "read_alien / write_alien / fill_zeros_alien\\n→ access_alien() 统一原语", "core")
-b += node("query", "query_page_with_required_flags\\n在目标 VmSpace 按页查询映射/权限\\n（不切换地址空间）", "core")
-b += node("frame", "命中 RAM UFrame\\nframe.reader()/writer() 直接拷贝", "mem")
-b += node("fault", "缺页 / 权限不足\\nhandle_page_fault(.force()) 后重试", "event")
-b += '''
-  src1 -> chk; src2 -> chk;
-  chk -> entry -> query;
-  query -> frame [label="映射存在且权限满足", color="#2F9D57"];
-  query -> fault [label="需要处理", color="#C0463F"];
-  fault -> query [label="重试", style=dashed, constraint=false];
-'''
-render("07_mem_access", wrap(b, extra='rankdir=LR, nodesep="0.45", ranksep="0.7"'))
+b = ""
+# two sources at top
+b += node("src1", "ptrace PEEK / POKE", "user", pos="190,560")
+b += node("src2", "/proc/&lt;pid&gt;/mem", "user", pos="450,560")
+# converge into check
+b += node("chk", "权限 + 停止态检查", "sec", pos="320,460")
+# entry primitive
+b += node("entry", "read_alien / write_alien / fill_zeros_alien\\n统一收敛到 access_alien() 原语", "core", pos="320,360")
+# query
+b += node("query", "query_page_with_required_flags\\n在目标 VmSpace 按页查询映射、权限\\n（不切换地址空间）", "core", pos="320,250")
+# branches
+b += node("frame", "命中 RAM UFrame\\nframe.reader()/writer() 直接拷贝", "mem", pos="140,110")
+b += node("fault", "缺页 / 权限不足\\nhandle_page_fault(.force()) 后重试", "event", pos="560,110")
+
+# edges
+b += "  src1:s -> chk:nw [arrowhead=normal];\n"
+b += "  src2:s -> chk:ne [arrowhead=normal];\n"
+b += "  chk:s -> entry:n;\n"
+b += "  entry:s -> query:n;\n"
+b += '  query:sw -> frame:n [color="#2F9D57"];\n'
+b += '  query:se -> fault:n [color="#C0463F"];\n'
+# retry loop: out fault east, up, back into query east
+b += '  wp1 [shape=point, width=0.01, style=invis, pos="720,110"];\n'
+b += '  wp2 [shape=point, width=0.01, style=invis, pos="720,250"];\n'
+b += '  fault:e -> wp1 [arrowhead=none, color="#C0463F", style=dashed];\n'
+b += '  wp1 -> wp2 [arrowhead=none, color="#C0463F", style=dashed];\n'
+b += '  wp2 -> query:e [color="#C0463F", style=dashed];\n'
+
+# labels (separate white-bg text boxes)
+b += tlabel("l_frame", "映射存在且权限满足", "170,185", color="#1c6035")
+b += tlabel("l_fault", "需要处理", "490,185", color="#7d2723")
+b += tlabel("l_retry", "重试", "720,185", color="#7d2723")
+
+dot7 = ('digraph G {\n'
+  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];\n'
+  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
+  + b + '}\n')
+render("07_mem_access", dot7, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 8. x86-64 寄存器 ABI：字段级写策略
 # =====================================================================
-b  = node("trap", "tracee 陷入内核\\nsignal/syscall/exec/exit", "user")
-b += node("snap", "进入 ptrace-stop\\n复制 GeneralRegs + orig_rax 到快照", "core")
-b += node("rule", "CUserRegsStruct + REG_RULES\\n字段级访问策略", "sec", penwidth="2.2")
-b += node("set", "rax..r15 → Set\\n自由修改", "mem")
-b += node("setif", "rip/rsp/fs/gsbase → SetIf\\n必须是用户地址", "mem")
-b += node("trunc", "rflags → SetBitsTruncate\\n仅用户态可控位", "mem")
-b += node("fixed", "cs/ss/ds/es → Fixed\\n匹配 Linux 段不变量", "mem")
-b += node("dbg", "debug regs → 读默认值\\n写返回 EOPNOTSUPP", "mem")
-b += node("wb", "tracee 唤醒\\n快照写回 UserContext", "core")
+# 5 wide boxes; spacing 350, shifted right so leftmost box clears the edge
+xs = [180, 530, 880, 1230, 1580]
+cx = sum(xs)/len(xs)   # center x = 880
+yrow = 230             # row of 5 boxes
+ytop = 640             # trap
+ysnap = 490
+yrule = 360
+ywb = 40
+ybus = 130             # horizontal merge bus just below the 5 boxes
+
+b  = node("trap", "tracee 陷入内核\\nsignal / syscall / exec / exit", "user", pos=f"{cx},{ytop}")
+b += node("snap", "进入 ptrace-stop\\n复制 GeneralRegs + orig_rax 到快照", "core", pos=f"{cx},{ysnap}")
+b += node("rule", "CUserRegsStruct + REG_RULES\\n字段级访问策略", "sec", penwidth="2.4", pos=f"{cx},{yrule}")
+
+b += node("set",   "rax..r15 → Set\\n自由修改",            "mem", pos=f"{xs[0]},{yrow}")
+b += node("setif", "rip/rsp/fs/gsbase → SetIf\\n必须是用户地址", "mem", pos=f"{xs[1]},{yrow}")
+b += node("trunc", "rflags → SetBitsTruncate\\n仅用户态可控位", "mem", pos=f"{xs[2]},{yrow}")
+b += node("fixed", "cs/ss/ds/es → Fixed\\n匹配 Linux 段不变量",  "mem", pos=f"{xs[3]},{yrow}")
+b += node("dbg",   "debug regs → 读默认值\\n写返回 EOPNOTSUPP",  "mem", pos=f"{xs[4]},{yrow}")
+
+b += node("wb", "tracee 唤醒\\n快照写回 UserContext", "core", pos=f"{cx},{ywb}")
+
+# horizontal merge bus: a point under each box + a center trunk junction
+for i,x in enumerate(xs):
+    b += f'  bus{i} [shape=point, width=0.01, style=invis, pos="{x},{ybus}"];\n'
+b += f'  trunk [shape=point, width=0.01, style=invis, pos="{cx},{ybus}"];\n'
+
+# spine
 b += '''
-  trap -> snap -> rule;
-  rule -> set; rule -> setif; rule -> trunc; rule -> fixed; rule -> dbg;
-  set -> wb [style=invis]; setif -> wb; trunc -> wb [style=invis]; fixed -> wb [style=invis]; dbg -> wb [style=invis];
-  { rank=same; set; setif; trunc; fixed; dbg; }
+  trap -> snap [color="#5b6b7d"];
+  snap -> rule [color="#5b6b7d"];
 '''
-render("08_register_abi", wrap(b, extra='rankdir=TB, nodesep="0.35", ranksep="0.55"'))
+# fan out from rule:s to each box top
+for nid in ["set","setif","trunc","fixed","dbg"]:
+    b += f'  rule:s -> {nid}:n [color="#5b6b7d"];\n'
+# converge: each box bottom -> its bus point (down), bus points joined into a
+# horizontal bus, then one clean trunk down into wb:n
+for i,nid in enumerate(["set","setif","trunc","fixed","dbg"]):
+    tgt = "trunk" if nid=="trunc" else f"bus{i}"
+    b += f'  {nid}:s -> {tgt} [arrowhead=none, color="#5b6b7d"];\n'
+# left half of bus flows right into trunk, right half flows left into trunk
+b += '  bus0 -> bus1 [arrowhead=none, color="#5b6b7d"];\n'
+b += '  bus1 -> trunk [arrowhead=none, color="#5b6b7d"];\n'
+b += '  bus4 -> bus3 [arrowhead=none, color="#5b6b7d"];\n'
+b += '  bus3 -> trunk [arrowhead=none, color="#5b6b7d"];\n'
+b += '  trunk -> wb:n [color="#5b6b7d"];\n'
+
+dot8 = ('digraph G {\n'
+  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];\n'
+  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
+  + b + '}\n')
+render("08_register_abi", dot8, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 9. 断点闭环（环形流程）
 # =====================================================================
-steps = [
-    ("b1","① maps 定位代码映射"),
-    ("b2","② PEEKTEXT 读原指令"),
-    ("b3","③ POKETEXT 写 int3"),
-    ("b4","④ 命中 #BP → SIGTRAP"),
-    ("b5","⑤ ptrace-stop 保存现场"),
-    ("b6","⑥ wait 返回 SIGTRAP"),
-    ("b7","⑦ GET/SETREGS 修正 RIP"),
-    ("b8","⑧ 恢复原指令"),
-    ("b9","⑨ SINGLESTEP 走一步"),
-    ("b10","⑩ 重新写回 int3"),
-    ("b11","⑪ CONT 继续"),
-]
-b = node("hub0", "软件断点闭环\\n（非独立模块、原语组合）", "sec", penwidth="2.4", fontsize="14")
-kinds = ["proc","mem","mem","event","core","proc","core","mem","core","mem","user"]
-for (nid,lab),k in zip(steps,kinds):
-    b += node(nid, lab, k)
-for i in range(len(steps)-1):
-    b += f'  {steps[i][0]} -> {steps[i+1][0]};\n'
-b += f'  {steps[-1][0]} -> {steps[3][0]} [label="再次命中", style=dashed, color="#C0463F"];\n'
-b += f'  {steps[0][0]} -> hub0 [style=invis];\n'
-render("09_breakpoint_loop", wrap(b, extra='nodesep="0.45", ranksep="1.1", overlap=false, mindist="1.2"'), engine="circo")
+# ---- geometry ----
+cx, cy = 430, 300
+R = 200
+# ring steps b4..b11 (8 nodes). We want b11 adjacent to b4.
+# Going clockwise starting at b4. Place b4 at upper-left so the ①②③ tail enters from the left.
+# 8 angles spaced 45deg; b4 at 135deg, b11 lands at 180deg (left), adjacent to b4.
+ring = ["b4","b5","b6","b7","b8","b9","b10","b11"]
+start = 135.0
+ang = {}
+pos = {}
+for i,n in enumerate(ring):
+    theta = math.radians(start - i*45.0)
+    ang[n] = theta
+    x = cx + R*math.cos(theta)
+    y = cy + R*math.sin(theta)
+    pos[n] = (x,y)
+
+# tail steps ①②③ leading into b4 from the left
+b4x, b4y = pos["b4"]
+pos["b1"] = (b4x-330, b4y+120)
+pos["b2"] = (b4x-330, b4y+55)
+pos["b3"] = (b4x-330, b4y-10)
+# hub at center (centroid of ring node centers for true visual balance)
+hx = sum(pos[n][0] for n in ring)/len(ring)
+hy = sum(pos[n][1] for n in ring)/len(ring)
+pos["hub"] = (hx, hy)
+
+def P(n): return f'{pos[n][0]:.1f},{pos[n][1]:.1f}'
+
+steps = {
+ "b1":("① maps 定位代码映射","proc"),
+ "b2":("② PEEKTEXT 读原指令","mem"),
+ "b3":("③ POKETEXT 写 int3","mem"),
+ "b4":("④ 命中 #BP → SIGTRAP","event"),
+ "b5":("⑤ ptrace-stop 保存现场","core"),
+ "b6":("⑥ wait 返回 SIGTRAP","proc"),
+ "b7":("⑦ GET/SETREGS 修正 RIP","core"),
+ "b8":("⑧ 恢复原指令","mem"),
+ "b9":("⑨ SINGLESTEP 走一步","core"),
+ "b10":("⑩ 重新写回 int3","mem"),
+ "b11":("⑪ CONT 继续","user"),
+}
+
+b = ""
+for nid,(lab,kind) in steps.items():
+    b += node(nid,lab,kind,pos=P(nid))
+b += node("hub","软件断点闭环\\n（能力的组合，非独立模块）","sec",pos=P("hub"),penwidth="2.4",fontsize="13")
+
+# edges b1->b2->...->b11 sequential
+seq = ["b1","b2","b3","b4","b5","b6","b7","b8","b9","b10","b11"]
+for a,c in zip(seq,seq[1:]):
+    b += f'  {a} -> {c};\n'
+# feedback b11->b4 dashed red short arc
+b += '  b11 -> b4 [color="#C0463F", style="dashed", penwidth="1.6"];\n'
+
+# tlabel near b11->b4 arc (left side of ring)
+b11x,b11y=pos["b11"]; b4x2,b4y2=pos["b4"]
+mx=(b11x+b4x2)/2 - 70; my=(b11y+b4y2)/2
+b += tlabel("fb","再次命中",f'{mx:.1f},{my:.1f}',color="#C0463F")
+
+dot9 = ('digraph G {\n'
+  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.14,0.09", fontsize=12];\n'
+  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
+  + b + '}\n')
+render("09_breakpoint_loop", dot9, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 10. 安全模型：access check + Yama 决策流
 # =====================================================================
-b  = node("req", "调试请求\\nptrace attach / proc mem", "user")
-b += node("same", "同进程？", "ink", shape="diamond", style="filled")
-b += node("ugid", "UID/GID 匹配？\\n(Fs 或 Real creds)", "sec", shape="diamond", style="filled")
-b += node("cap", "具备 CAP_SYS_PTRACE？", "sec", shape="diamond", style="filled")
-b += node("yama", "Yama LSM hook", "sec")
-b += node("allow", "放行", "core")
-b += node("deny", "拒绝 EPERM/EACCES", "mem")
-b += '''
-  req -> same;
-  same -> allow [label="是", color="#2F9D57"];
-  same -> ugid [label="否"];
-  ugid -> cap [label="否"];
-  ugid -> yama [label="是"];
-  cap -> yama [label="是"];
-  cap -> deny [label="否", color="#C0463F"];
-  yama -> allow [label="scope 通过", color="#2F9D57"];
-  yama -> deny [label="scope 拒绝", color="#C0463F"];
-'''
-# yama scope legend
-b += '''
-  subgraph cluster_scope {
-    label="Yama ptrace_scope"; fontname="''' + FONT + '''"; fontsize=13; fontcolor="#48227f";
-    style="rounded,filled"; color="#6F42C1"; fillcolor="#F1E9FF99"; margin=12;
-    y0 [label="0 Disabled、不额外限制", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
-    y1 [label="1 Relational（默认）、仅祖先 / CAP", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
-    y2 [label="2 Capability、仅 CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
-    y3 [label="3 NoAttach、全禁，设置后不可降级", fillcolor="#F1E9FF", color="#6F42C1", fontname="''' + FONT + '''", fontsize=12];
-    y0 -> y1 -> y2 -> y3 [style=invis];
-  }
-'''
-render("10_security_model", wrap(b, extra='rankdir=TB, nodesep="0.45", ranksep="0.6"'))
+GREEN="#2F9D57"; RED="#C0463F"; GRAY="#5b6b7d"
+
+# ---- spine (y-up, points) ----
+SX=250
+y_req=480; y_same=388; y_ugid=296; y_cap=196; y_yama=92
+y_term=20
+allow_x=70; deny_x=430
+LANE_SAME=70     # green same->allow far-left lane
+LANE_UGID=140    # green ugid->yama lane (right of same lane)
+
+b=""
+b+=node("req","调试请求\\nptrace attach、proc mem","user",pos=f"{SX},{y_req}")
+b+=node("same","同进程？","ink",shape="diamond",style="filled",
+        width="1.4",height="0.62",fixedsize="true",pos=f"{SX},{y_same}")
+b+=node("ugid","UID/GID 匹配？\\n(Fs 或 Real creds)","sec",shape="diamond",style="filled",
+        width="2.3",height="0.95",fixedsize="true",pos=f"{SX},{y_ugid}")
+b+=node("cap","具备\\nCAP_SYS_PTRACE？","sec",shape="diamond",style="filled",
+        width="2.3",height="0.95",fixedsize="true",pos=f"{SX},{y_cap}")
+b+=node("yama","Yama LSM hook","sec",pos=f"{SX},{y_yama}")
+b+=node("allow","放行","core",pos=f"{allow_x},{y_term}")
+b+=node("deny","拒绝 EPERM / EACCES","mem",pos=f"{deny_x},{y_term}")
+# invisible waypoint to route ugid->yama cleanly around cap (left corridor)
+b+=f'  wp_uy [shape=point, width=0.001, color="white", pos="{LANE_UGID},{(y_cap+y_yama)/2}"];\n'
+
+# ---- edges ----
+b+=f'  req -> same [color="{GRAY}"];\n'
+b+=f'  same -> ugid [color="{GRAY}"];\n'
+b+=f'  ugid -> cap [color="{GRAY}"];\n'
+b+=f'  cap -> yama [color="{GRAY}"];\n'
+# same -> allow (green): far-left lane
+b+=f'  same:w -> allow:n [color="{GREEN}", penwidth=1.6, pos="e,{allow_x},{y_term+22} {LANE_SAME},{y_same} {LANE_SAME},{y_term+90}"];\n'
+# ugid -> yama (green, 是): route through invisible waypoint left of cap
+b+=f'  ugid:w -> wp_uy [color="{GREEN}", penwidth=1.6, arrowhead=none];\n'
+b+=f'  wp_uy -> yama:w [color="{GREEN}", penwidth=1.6];\n'
+# cap -> deny (red): right diagonal to deny
+b+=f'  cap:e -> deny:n [color="{RED}", penwidth=1.6, pos="e,{deny_x},{y_term+22} {SX+170},{y_cap} {deny_x},{y_cap-30}"];\n'
+# yama -> allow (green): hop down-left into allow right
+b+=f'  yama:sw -> allow:e [color="{GREEN}", penwidth=1.6];\n'
+# yama -> deny (red): hop down-right into deny left/nw
+b+=f'  yama:se -> deny:nw [color="{RED}", penwidth=1.6];\n'
+
+# ---- tlabels ----
+b+=tlabel("L_same_y","是",f"{LANE_SAME+22},{(y_same+y_term)/2+50}",GREEN)
+b+=tlabel("L_same_n","否",f"{SX+22},{(y_same+y_ugid)/2}",GRAY)
+b+=tlabel("L_ugid_y","是",f"{LANE_UGID+22},{(y_ugid+y_cap)/2-14}",GREEN)
+b+=tlabel("L_ugid_n","否",f"{SX+22},{(y_ugid+y_cap)/2}",GRAY)
+b+=tlabel("L_cap_y","是",f"{SX+22},{(y_cap+y_yama)/2}",GRAY)
+b+=tlabel("L_cap_n","否",f"{SX+200},{(y_cap+y_term)/2+30}",RED)
+b+=tlabel("L_yama_p","scope 通过",f"{SX-86},{y_yama-46}",GREEN)
+b+=tlabel("L_yama_d","scope 拒绝",f"{SX+92},{y_yama-46}",RED)
+
+# ---- compact Yama scope legend (right side) ----
+LX=650
+ly_title=362
+dy=60
+ly0=300
+ly=[ly0, ly0-dy, ly0-2*dy, ly0-3*dy]
+b+=tlabel("scope_title","Yama ptrace_scope",f"{LX},{ly_title}","#48227f")
+for nid,txt,yy in [("y0","0 Disabled、不额外限制",ly[0]),
+                   ("y1","1 Relational（默认）、仅祖先 / CAP",ly[1]),
+                   ("y2","2 Capability、仅 CAP_SYS_PTRACE",ly[2]),
+                   ("y3","3 NoAttach、全禁，设置后不可降级",ly[3])]:
+    b+=node(nid,txt,"sec",fontsize="11",margin="0.14,0.07",pos=f"{LX},{yy}")
+
+dot10 = ('digraph G {\n'
+  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];\n'
+  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
+  + b + '}\n')
+render("10_security_model", dot10, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 11. 实现进度时间线（里程碑）
 # =====================================================================
-milestones = [
-    ("04.23", "procfs 视图 + 安全地基", "/proc maps, mem, tid 等\\nforce-write, access check, Yama, tkill", "proc"),
-    ("04.26", "ptrace 最小闭环", "syscall 框架、TRACEME, CONT\\nptrace-stop, wait 整合、exec SIGTRAP", "core"),
-    ("05.14", "寄存器与单步", "GET/SETREGS, PEEK/POKEUSER\\nSINGLESTEP、断点、GETSIGINFO/KILL", "mem"),
-    ("05.18", "options 与 event-stop", "SETOPTIONS, GETEVENTMSG\\nEXEC/EXIT event, EXITKILL", "event"),
-    ("05.21", "ABI 对齐 + GDB CI", "USER_CS/SS 对齐、debug regs 仿真\\npersonality, GDB 文档/CI", "sec"),
-    ("05.28", "syscall 跟踪 + strace", "PTRACE_SYSCALL, TRACESYSGOOD\\nPEEK/POKE TEXT, DATA, strace CI", "user"),
+# ---- data ----
+ms = [
+ ("ms0","04.23","procfs 视图 + 安全地基","/proc maps、mem、tid 等\\nforce-write、access check、Yama、tkill","proc"),
+ ("ms1","04.26","ptrace 最小闭环","syscall 框架、TRACEME、CONT\\nptrace-stop、wait 整合、exec SIGTRAP","core"),
+ ("ms2","05.14","寄存器与单步","GET/SETREGS、PEEK/POKEUSER\\nSINGLESTEP、断点、GETSIGINFO/KILL","mem"),
+ ("ms3","05.18","options 与 event-stop","SETOPTIONS、GETEVENTMSG\\nEXEC/EXIT event、EXITKILL","event"),
+ ("ms4","05.21","ABI 对齐 + GDB CI","USER_CS/SS 对齐、debug regs 仿真\\npersonality、GDB 文档/CI","sec"),
+ ("ms5","05.28","syscall 跟踪 + strace","PTRACE_SYSCALL、TRACESYSGOOD\\nPEEK/POKE TEXT、DATA、strace CI","user"),
 ]
+
+# ---- 2-row serpentine layout (points, y-up) ----
+COL_DX = 345
+X0 = 210
+ROW_TOP = 405
+ROW_BOT = 150
+CARD_W = 2.30
+CARD_HALF_W = 172   # approx half card width in points (for routing)
+
+# true serpentine: top row ms0->ms1->ms2 (L->R);
+# bottom row ms3->ms4->ms5 flows R->L, so ms3 sits under ms2 (right side).
+pos = {}
+for i in range(3):
+    pos[i] = (X0 + COL_DX*i, ROW_TOP)
+# bottom row laid out so ms3 under ms2, ms4 under ms1, ms5 under ms0
+for i,col in [(3,2),(4,1),(5,0)]:
+    pos[i] = (X0 + COL_DX*col, ROW_BOT)
+
 b = ""
-for i,(date,title,detail,k) in enumerate(milestones):
-    nid=f"ms{i}"
-    b += node(nid, f"{date}\\n{title}\\n{detail}", k)
-# 3 列 x 2 行
-b += "  ms0 -> ms1 -> ms2 [constraint=false];\n"
-b += "  ms3 -> ms4 -> ms5 [constraint=false];\n"
-b += "  ms2 -> ms3 [label=\"\", color=\"#5b6b7d\"];\n"
-b += "  { rank=same; ms0; ms1; ms2; }\n"
-b += "  { rank=same; ms3; ms4; ms5; }\n"
-render("11_timeline", wrap(b, extra='rankdir=TB, nodesep="0.5", ranksep="0.9"'))
+for i,(mid,date,title,detail,kind) in enumerate(ms):
+    x,y = pos[i]
+    label = f"{date}\\n{title}\\n{detail}"
+    b += node(mid,label,kind, pos=f"{x},{y}", width=str(CARD_W))
+
+# straight flow arrows within rows
+def edge(a,bn,color,head="normal"):
+    return f'  {a} -> {bn} [color="{color}", penwidth=2.2, arrowsize=1.0, dir={head}];\n'
+
+flow_col = "#7a8aa0"
+b += edge("ms0","ms1",flow_col)
+b += edge("ms1","ms2",flow_col)
+# wrap arrow ms2 (top right) -> ms3 (bottom right): clean straight vertical drop.
+x2,_ = pos[2]
+b += f'  ms2 -> ms3 [color="{flow_col}", penwidth=2.4, arrowsize=1.1];\n'
+# bottom row flows right->left: ms3 -> ms4 -> ms5
+b += edge("ms3","ms4",flow_col)
+b += edge("ms4","ms5",flow_col)
+
+# wrap-arrow text box (beside the vertical drop, between the two rows)
+wrap_y = (ROW_TOP+ROW_BOT)/2
+b += tlabel("wraptxt","时间推进", f"{x2+62},{wrap_y}")
+
+dot11 = ('digraph G {\n'
+  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=12];\n'
+  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.6, arrowsize=0.9, fontsize=11];\n'
+  + b + '}\n')
+render("11_timeline", dot11, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 12. 测试与验证金字塔
 # =====================================================================
-b  = node("t4", "真实工具链验收\\n真实 GDB（断点/回溯/单步/改内存）、strace", "user", penwidth="2.4", fontsize="14")
-b += node("t3", "兼容性测试\\ngVisor ptrace_test、以 ABI 行为为准", "sec")
-b += node("t2", "集成 / 回归测试\\ndebugger, debuggee, PTRACE_SYSCALL, proc mem/maps, Yama", "core")
-b += node("t1", "单元测试\\nptrace.c, read_write_regs.c, set_options.c", "proc")
-b += '''
-  t1 -> t2 -> t3 -> t4 [dir=none];
-'''
-b += '''
-  note [shape=note, fontsize=12, fontname="''' + FONT + '''", fillcolor="#E5F8EE", color="#2F9D57", style="filled",
-        label="原则：以真实工具为准、以 ABI 行为为准；\\n安全测试与功能测试同等重要"];
-'''
-render("12_test_pyramid", wrap(b, extra='rankdir=TB, nodesep="0.4", ranksep="0.55"'))
+b=""
+b+=node("apex","真实工具链验收\\n真实 GDB（断点/回溯/单步/改内存）、strace","user",
+        pos="0,246", width="4.4", height="0.92", fixedsize="true", penwidth="2.4")
+b+=node("t3","兼容性测试\\ngVisor ptrace_test、以 ABI 行为为准","sec",
+        pos="0,164", width="5.0", height="0.92", fixedsize="true")
+b+=node("t2","集成 / 回归测试\\ndebugger、debuggee、PTRACE_SYSCALL、\\nproc mem/maps、Yama","core",
+        pos="0,82", width="5.7", height="1.05", fixedsize="true")
+b+=node("base","单元测试\\nptrace.c、read_write_regs.c、set_options.c","proc",
+        pos="0,0", width="6.4", height="0.92", fixedsize="true")
+
+# right column: note (beside narrow tier), annotations near apex/base
+b+=tlabel("ann_top","少、慢、高价值", "255,246", "#7a5200")
+b+=('  note1 [shape=note, style="filled", fillcolor="#E5F8EE", color="#2F9D57", '
+    'fontsize=11, fontcolor="#1c6035", pos="273,158", '
+    'label="原则：以真实工具为准、\\n以 ABI 行为为准；\\n安全测试与功能测试\\n同等重要"];\n')
+b+=tlabel("ann_bot","多、快、廉价", "255,0", "#0f5151")
+
+dot12 = ('digraph G {\n'
+  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.12", fontsize=13];\n'
+  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
+  + b + '}\n')
+render("12_test_pyramid", dot12, engine="neato", extra_args=["-n1"])
 
 # =====================================================================
 # 13. 需求拆解：调试动作 → 内核能力
