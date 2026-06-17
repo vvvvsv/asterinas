@@ -2,11 +2,10 @@ digraph G {
   graph [fontname="PingFang SC", bgcolor="white", pad="0.3", splines=true];
   node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.12", fontsize=13];
   edge [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
-  apex [label="真实工具链验收\n真实 GDB（断点/回溯/单步/改内存）、strace", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="0,246", width="4.4", height="0.92", fixedsize="true", penwidth="2.4"];
-  t3 [label="兼容性测试\ngVisor ptrace_test、以 ABI 行为为准", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", pos="0,164", width="5.0", height="0.92", fixedsize="true"];
-  t2 [label="集成 / 回归测试\ndebugger、debuggee、PTRACE_SYSCALL、\nproc mem/maps、Yama", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="0,82", width="5.7", height="1.05", fixedsize="true"];
-  base [label="单元测试\nptrace.c、read_write_regs.c、set_options.c", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="0,0", width="6.4", height="0.92", fixedsize="true"];
-  ann_top [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#7a5200", pos="255,246", label="少、慢、高价值"];
-  note1 [shape=note, style="filled", fillcolor="#E5F8EE", color="#2F9D57", fontsize=11, fontcolor="#1c6035", pos="273,158", label="原则：以真实工具为准、\n以 ABI 行为为准；\n安全测试与功能测试\n同等重要"];
+  apex [label="NixOS 测试\n真实 GDB、strace 端到端验收", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="0,246", width="3.5", height="0.92", fixedsize="true", penwidth="2.4"];
+  t3 [label="一致性测试（conformance）\ngVisor ptrace_test / proc_test、LTP", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", pos="0,164", width="4.2", height="0.92", fixedsize="true"];
+  t2 [label="复杂回归测试\n手写 debugger / debuggee 配对", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="0,82", width="4.8", height="0.92", fixedsize="true"];
+  base [label="简单回归测试\npid_mem、ptrace、set_options、read_write_regs、yama", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="0,0", width="5.4", height="0.92", fixedsize="true"];
+  ann_top [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#7a5200", pos="245,246", label="少、慢、高价值"];
   ann_bot [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#0f5151", pos="255,0", label="多、快、廉价"];
 }

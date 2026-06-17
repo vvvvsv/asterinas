@@ -349,8 +349,8 @@ render("08_register_abi", dot8, engine="neato", extra_args=["-n1"])
 # 9. 断点闭环（环形流程）
 # =====================================================================
 # 4×4 蛇形网格：固定坐标对齐；tracee 块=绿(core)，tracer 块=黄(user)
-COL = [0, 235, 470, 705]
-R1, R2, R3, R4 = 360, 240, 120, 0
+COL = [0, 200, 400, 600]
+R1, R2, R3, R4 = 300, 200, 100, 0
 T="core"; U="user"
 cells = [
   ("b1", "命中 #BP\\n→ SIGTRAP",            T, COL[0], R1),
@@ -371,19 +371,24 @@ cells = [
   ("b16","tracee 再次\\n走到断点",            T, COL[0], R4),
 ]
 b = ""
+# 两个阶段底框（先声明，置于底层）
+b += '  bandA [label="", shape=box, style="rounded,filled", fillcolor="#EFF4FC", color="#9DB8DD", penwidth=1.4, fixedsize=true, width="10.7", height="2.55", pos="300,252"];\n'
+b += '  bandB [label="", shape=box, style="rounded,filled", fillcolor="#F4EFFB", color="#C3ABE0", penwidth=1.4, fixedsize=true, width="10.7", height="2.55", pos="300,52"];\n'
+b += f'  ptitleA [shape=plaintext, style="filled", fillcolor="#EFF4FC", fontname="{FONT}", fontcolor="#1d3a66", fontsize="12", label="阶段一　命中断点，回退一步并准备单步", pos="300,252"];\n'
+b += f'  ptitleB [shape=plaintext, style="filled", fillcolor="#F4EFFB", fontname="{FONT}", fontcolor="#48227f", fontsize="12", label="阶段二　单步越过原指令后，恢复断点", pos="300,52"];\n'
 for nid,lab,kind,x,y in cells:
-    b += node(nid,lab,kind,pos=f"{x},{y}",width="2.1",height="0.62",fixedsize="true")
-# 一次性设置断点（外接在循环之前，竖直进入 命中 #BP）；均为 tracer 操作
-b += node("s1","maps 定位代码映射","user",pos="0,590",width="2.1",height="0.6",fixedsize="true")
-b += node("s2","PEEKTEXT 读原指令","user",pos="0,510",width="2.1",height="0.6",fixedsize="true")
-b += node("s3","POKETEXT 写 int3","user",pos="0,440",width="2.1",height="0.6",fixedsize="true")
-b += tlabel("s_hdr","设置断点（一次性）","0,640",color="#7a5200")
+    b += node(nid,lab,kind,pos=f"{x},{y}",width="1.85",height="0.56",fixedsize="true")
+# 一次性设置断点（横排在顶部，自右向左汇入 命中 #BP）；均为 tracer 操作
+b += node("s1","maps 定位代码映射","user",pos="400,392",width="1.85",height="0.52",fixedsize="true")
+b += node("s2","PEEKTEXT 读原指令","user",pos="200,392",width="1.85",height="0.52",fixedsize="true")
+b += node("s3","POKETEXT 写 int3","user",pos="0,392",width="1.85",height="0.52",fixedsize="true")
+b += tlabel("s_hdr","设置断点（一次性）","200,432",color="#7a5200")
 # 图例
-b += node("leg_t","tracee（被调试程序）执行","core",pos="705,585",width="2.6",height="0.44",fixedsize="true",fontsize="11")
-b += node("leg_r","tracer（调试器）操作","user",pos="705,520",width="2.6",height="0.44",fixedsize="true",fontsize="11")
+b += node("leg_t","tracee（被调试程序）执行","core",pos="600,410",width="2.4",height="0.42",fixedsize="true",fontsize="11")
+b += node("leg_r","tracer（调试器）操作","user",pos="600,368",width="2.4",height="0.42",fixedsize="true",fontsize="11")
 # 设置断点链 -> 进入循环
-b += '  s1:s -> s2:n [color="#5b6b7d"];\n'
-b += '  s2:s -> s3:n [color="#5b6b7d"];\n'
+b += '  s1:w -> s2:e [color="#5b6b7d"];\n'
+b += '  s2:w -> s3:e [color="#5b6b7d"];\n'
 b += '  s3:s -> b1:n [color="#5b6b7d"];\n'
 # 顺序流（灰，蛇形）
 seq_edges = [
@@ -398,16 +403,16 @@ seq_edges = [
 for a,c in seq_edges:
     b += f'  {a} -> {c} [color="#5b6b7d"];\n'
 # 回到开头（红实线，走最左侧竖线）
-b += '  lb1 [shape=point, width=0.01, style=invis, pos="-130,0"];\n'
-b += '  lb2 [shape=point, width=0.01, style=invis, pos="-130,360"];\n'
+b += '  lb1 [shape=point, width=0.01, style=invis, pos="-115,0"];\n'
+b += '  lb2 [shape=point, width=0.01, style=invis, pos="-115,300"];\n'
 b += '  b16:w -> lb1 [arrowhead=none, color="#C0463F"];\n'
 b += '  lb1 -> lb2 [arrowhead=none, color="#C0463F"];\n'
 b += '  lb2 -> b1:w [color="#C0463F"];\n'
-b += tlabel("fb","再次命中","-130,185",color="#C0463F")
+b += tlabel("fb","再次命中","-115,152",color="#C0463F")
 
 dot9 = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
-  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.1,0.06", fontsize=12];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.1,0.06", fontsize=11];\n'
   f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
   + b + '}\n')
 render("09_breakpoint_loop", dot9, engine="neato", extra_args=["-n1"])
@@ -417,9 +422,9 @@ render("09_breakpoint_loop", dot9, engine="neato", extra_args=["-n1"])
 # =====================================================================
 b  = '  node [margin="0.1,0.035"];\n'
 b += node("req", "调试请求\\nptrace attach / proc mem", "user")
-b += node("same", "同进程？", "ink", shape="diamond", style="filled")
-b += node("ugid", "UID/GID 匹配？\\n(Fs 或 Real creds)", "sec", shape="diamond", style="filled")
-b += node("cap", "具备 CAP_SYS_PTRACE？", "sec", shape="diamond", style="filled")
+b += node("same", "同进程？", "ink")
+b += node("ugid", "UID/GID 匹配？\\n(Fs 或 Real creds)", "sec")
+b += node("cap", "具备 CAP_SYS_PTRACE？", "sec")
 b += node("yama", "Yama LSM hook", "sec")
 b += node("allow", "放行", "core")
 b += node("deny", "拒绝 EPERM/EACCES", "mem")
@@ -501,20 +506,17 @@ render("11_timeline", dot11, engine="neato", extra_args=["-n1"])
 # 12. 测试与验证金字塔
 # =====================================================================
 b=""
-b+=node("apex","真实工具链验收\\n真实 GDB（断点/回溯/单步/改内存）、strace","user",
-        pos="0,246", width="4.4", height="0.92", fixedsize="true", penwidth="2.4")
-b+=node("t3","兼容性测试\\ngVisor ptrace_test、以 ABI 行为为准","sec",
-        pos="0,164", width="5.0", height="0.92", fixedsize="true")
-b+=node("t2","集成 / 回归测试\\ndebugger、debuggee、PTRACE_SYSCALL、\\nproc mem/maps、Yama","core",
-        pos="0,82", width="5.7", height="1.05", fixedsize="true")
-b+=node("base","单元测试\\nptrace.c、read_write_regs.c、set_options.c","proc",
-        pos="0,0", width="6.4", height="0.92", fixedsize="true")
+b+=node("apex","NixOS 测试\\n真实 GDB、strace 端到端验收","user",
+        pos="0,246", width="3.5", height="0.92", fixedsize="true", penwidth="2.4")
+b+=node("t3","一致性测试（conformance）\\ngVisor ptrace_test / proc_test、LTP","sec",
+        pos="0,164", width="4.2", height="0.92", fixedsize="true")
+b+=node("t2","复杂回归测试\\n手写 debugger / debuggee 配对","core",
+        pos="0,82", width="4.8", height="0.92", fixedsize="true")
+b+=node("base","简单回归测试\\npid_mem、ptrace、set_options、read_write_regs、yama","proc",
+        pos="0,0", width="5.4", height="0.92", fixedsize="true")
 
 # right column: note (beside narrow tier), annotations near apex/base
-b+=tlabel("ann_top","少、慢、高价值", "255,246", "#7a5200")
-b+=('  note1 [shape=note, style="filled", fillcolor="#E5F8EE", color="#2F9D57", '
-    'fontsize=11, fontcolor="#1c6035", pos="273,158", '
-    'label="原则：以真实工具为准、\\n以 ABI 行为为准；\\n安全测试与功能测试\\n同等重要"];\n')
+b+=tlabel("ann_top","少、慢、高价值", "245,246", "#7a5200")
 b+=tlabel("ann_bot","多、快、廉价", "255,0", "#0f5151")
 
 dot12 = ('digraph G {\n'
