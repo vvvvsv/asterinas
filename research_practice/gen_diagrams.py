@@ -348,69 +348,66 @@ render("08_register_abi", dot8, engine="neato", extra_args=["-n1"])
 # =====================================================================
 # 9. 断点闭环（环形流程）
 # =====================================================================
-# ---- geometry ----
-cx, cy = 430, 300
-R = 165
-# ring steps b4..b11 (8 nodes). We want b11 adjacent to b4.
-# Going clockwise starting at b4. Place b4 at upper-left so the ①②③ tail enters from the left.
-# 8 angles spaced 45deg; b4 at 135deg, b11 lands at 180deg (left), adjacent to b4.
-ring = ["b4","b5","b6","b7","b8","b9","b10","b11"]
-start = 135.0
-ang = {}
-pos = {}
-for i,n in enumerate(ring):
-    theta = math.radians(start - i*45.0)
-    ang[n] = theta
-    x = cx + R*math.cos(theta)
-    y = cy + R*math.sin(theta)
-    pos[n] = (x,y)
-
-# tail steps ①②③ leading into b4 from the left
-b4x, b4y = pos["b4"]
-pos["b1"] = (b4x-250, b4y+120)
-pos["b2"] = (b4x-250, b4y+55)
-pos["b3"] = (b4x-250, b4y-10)
-# hub at center (centroid of ring node centers for true visual balance)
-hx = sum(pos[n][0] for n in ring)/len(ring)
-hy = sum(pos[n][1] for n in ring)/len(ring)
-pos["hub"] = (hx, hy)
-
-def P(n): return f'{pos[n][0]:.1f},{pos[n][1]:.1f}'
-
-steps = {
- "b1":("① maps 定位代码映射","proc"),
- "b2":("② PEEKTEXT 读原指令","mem"),
- "b3":("③ POKETEXT 写 int3","mem"),
- "b4":("④ 命中 #BP → SIGTRAP","event"),
- "b5":("⑤ ptrace-stop 保存现场","core"),
- "b6":("⑥ wait 返回 SIGTRAP","proc"),
- "b7":("⑦ GET/SETREGS 修正 RIP","core"),
- "b8":("⑧ 恢复原指令","mem"),
- "b9":("⑨ 设 TF 单步执行一条\\n单步后再次进入 ptrace-stop","core"),
- "b10":("⑩ 重新写回 int3","mem"),
- "b11":("⑪ CONT 继续","user"),
-}
-
+# 4×4 蛇形网格：固定坐标对齐；tracee 块=绿(core)，tracer 块=黄(user)
+COL = [0, 235, 470, 705]
+R1, R2, R3, R4 = 360, 240, 120, 0
+T="core"; U="user"
+cells = [
+  ("b1", "命中 #BP\\n→ SIGTRAP",            T, COL[0], R1),
+  ("b2", "ptrace-stop\\n保存现场",           T, COL[1], R1),
+  ("b3", "wait(tracee)\\n返回",              U, COL[2], R1),
+  ("b4", "读寄存器 rip",                     U, COL[3], R1),
+  ("b5", "写寄存器\\nrip -= 1",              U, COL[3], R2),
+  ("b6", "写用户空间\\n恢复原指令",            U, COL[2], R2),
+  ("b7", "设置 CPU\\ntrap flag",             U, COL[1], R2),
+  ("b8", "resume tracee",                   U, COL[0], R2),
+  ("b9", "tracee 执行一步\\n原指令后陷入内核",  T, COL[0], R3),
+  ("b10","命中 #DB\\n→ SIGTRAP",             T, COL[1], R3),
+  ("b11","ptrace-stop\\n保存现场",           T, COL[2], R3),
+  ("b12","wait(tracee)\\n返回",              U, COL[3], R3),
+  ("b13","写用户空间\\nINT3",                U, COL[3], R4),
+  ("b14","清除 CPU\\ntrap flag",             U, COL[2], R4),
+  ("b15","resume tracee",                   U, COL[1], R4),
+  ("b16","tracee 再次\\n走到断点",            T, COL[0], R4),
+]
 b = ""
-for nid,(lab,kind) in steps.items():
-    b += node(nid,lab,kind,pos=P(nid))
-b += node("hub","软件断点闭环\\n（能力的组合，非独立模块）","sec",pos=P("hub"),penwidth="2.4",fontsize="13")
-
-# edges b1->b2->...->b11 sequential
-seq = ["b1","b2","b3","b4","b5","b6","b7","b8","b9","b10","b11"]
-for a,c in zip(seq,seq[1:]):
-    b += f'  {a} -> {c};\n'
-# feedback b11->b4 dashed red short arc
-b += '  b11 -> b4 [color="#C0463F", style="dashed", penwidth="1.6"];\n'
-
-# tlabel near b11->b4 arc (left side of ring)
-b11x,b11y=pos["b11"]; b4x2,b4y2=pos["b4"]
-mx=(b11x+b4x2)/2 - 70; my=(b11y+b4y2)/2
-b += tlabel("fb","再次命中",f'{mx:.1f},{my:.1f}',color="#C0463F")
+for nid,lab,kind,x,y in cells:
+    b += node(nid,lab,kind,pos=f"{x},{y}",width="2.1",height="0.62",fixedsize="true")
+# 一次性设置断点（外接在循环之前，竖直进入 命中 #BP）；均为 tracer 操作
+b += node("s1","maps 定位代码映射","user",pos="0,590",width="2.1",height="0.6",fixedsize="true")
+b += node("s2","PEEKTEXT 读原指令","user",pos="0,510",width="2.1",height="0.6",fixedsize="true")
+b += node("s3","POKETEXT 写 int3","user",pos="0,440",width="2.1",height="0.6",fixedsize="true")
+b += tlabel("s_hdr","设置断点（一次性）","0,640",color="#7a5200")
+# 图例
+b += node("leg_t","tracee（被调试程序）执行","core",pos="705,585",width="2.6",height="0.44",fixedsize="true",fontsize="11")
+b += node("leg_r","tracer（调试器）操作","user",pos="705,520",width="2.6",height="0.44",fixedsize="true",fontsize="11")
+# 设置断点链 -> 进入循环
+b += '  s1:s -> s2:n [color="#5b6b7d"];\n'
+b += '  s2:s -> s3:n [color="#5b6b7d"];\n'
+b += '  s3:s -> b1:n [color="#5b6b7d"];\n'
+# 顺序流（灰，蛇形）
+seq_edges = [
+  ("b1:e","b2:w"),("b2:e","b3:w"),("b3:e","b4:w"),
+  ("b4:s","b5:n"),
+  ("b5:w","b6:e"),("b6:w","b7:e"),("b7:w","b8:e"),
+  ("b8:s","b9:n"),
+  ("b9:e","b10:w"),("b10:e","b11:w"),("b11:e","b12:w"),
+  ("b12:s","b13:n"),
+  ("b13:w","b14:e"),("b14:w","b15:e"),("b15:w","b16:e"),
+]
+for a,c in seq_edges:
+    b += f'  {a} -> {c} [color="#5b6b7d"];\n'
+# 回到开头（红实线，走最左侧竖线）
+b += '  lb1 [shape=point, width=0.01, style=invis, pos="-130,0"];\n'
+b += '  lb2 [shape=point, width=0.01, style=invis, pos="-130,360"];\n'
+b += '  b16:w -> lb1 [arrowhead=none, color="#C0463F"];\n'
+b += '  lb1 -> lb2 [arrowhead=none, color="#C0463F"];\n'
+b += '  lb2 -> b1:w [color="#C0463F"];\n'
+b += tlabel("fb","再次命中","-130,185",color="#C0463F")
 
 dot9 = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
-  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.1,0.06", fontsize=11];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.1,0.06", fontsize=12];\n'
   f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
   + b + '}\n')
 render("09_breakpoint_loop", dot9, engine="neato", extra_args=["-n1"])
