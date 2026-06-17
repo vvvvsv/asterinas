@@ -1,6 +1,6 @@
 digraph G {
 
-  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.3", ranksep="0.5"];
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=LR, nodesep="0.25", ranksep="0.28"];
   node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
   edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
   empty [label="Empty\n无停止信号", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f"];
@@ -8,12 +8,13 @@ digraph G {
   consumed [label="Consumed\nwait 已报告", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151"];
   injected [label="Injected\ntracer 注入新信号", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
 
-  empty -> pending [label="ptrace-stop: stop()"];
-  pending -> consumed [label="wait（非 WNOWAIT）"];
+  edge [fontsize=10];
+  empty -> pending [label="ptrace-stop"];
+  pending -> consumed [label="wait"];
   pending -> pending [label="wait + WNOWAIT", constraint=false];
-  pending -> injected [label="resume 注入/替换"];
-  consumed -> injected [label="resume 注入/替换"];
-  pending -> empty [label="resume 抑制 / 清理"];
+  pending -> injected [label="resume 注入"];
+  consumed -> injected [label="resume 注入"];
+  pending -> empty [label="resume 抑制"];
   consumed -> empty [label="resume 抑制"];
   injected -> empty [label="信号投递后清空"];
 }

@@ -234,16 +234,17 @@ b += node("pending", "Pending\\n等待 wait 观察", "event")
 b += node("consumed", "Consumed\\nwait 已报告", "proc")
 b += node("injected", "Injected\\ntracer 注入新信号", "mem")
 b += '''
-  empty -> pending [label="ptrace-stop: stop()"];
-  pending -> consumed [label="wait（非 WNOWAIT）"];
+  edge [fontsize=10];
+  empty -> pending [label="ptrace-stop"];
+  pending -> consumed [label="wait"];
   pending -> pending [label="wait + WNOWAIT", constraint=false];
-  pending -> injected [label="resume 注入/替换"];
-  consumed -> injected [label="resume 注入/替换"];
-  pending -> empty [label="resume 抑制 / 清理"];
+  pending -> injected [label="resume 注入"];
+  consumed -> injected [label="resume 注入"];
+  pending -> empty [label="resume 抑制"];
   consumed -> empty [label="resume 抑制"];
   injected -> empty [label="信号投递后清空"];
 '''
-render("06_signal_states", wrap(b, extra='rankdir=LR, nodesep="0.3", ranksep="0.5"'))
+render("06_signal_states", wrap(b, extra='rankdir=LR, nodesep="0.25", ranksep="0.28"'))
 
 # =====================================================================
 # 7. 跨进程内存访问：VMAR alien access（不切换页表）
@@ -302,7 +303,7 @@ ybus = 180             # horizontal merge bus just below the 5 boxes
 
 b  = node("trap", "tracee 陷入内核\\n保存用户寄存器上下文", "user", pos=f"{cx},{ytop}")
 b += node("snap", "进入 ptrace-stop\\n持锁复制用户寄存器上下文到寄存器快照", "core", pos=f"{cx},{ysnap}")
-b += node("rule", "tracer 持锁修改寄存器快照\\n字段级访问策略", "sec", penwidth="2.4", pos=f"{cx},{yrule}")
+b += node("rule", "tracer 持锁修改寄存器快照\\n字段级访问策略", "sec", pos=f"{cx},{yrule}")
 
 b += node("set",   "rax..r15\\ntracer 自由修改",            "mem", pos=f"{xs[0]},{yrow}")
 b += node("setif", "rip/rsp/fs/gsbase\\n必须是用户地址", "mem", pos=f"{xs[1]},{yrow}")
