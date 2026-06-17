@@ -651,47 +651,74 @@ def fnode(nid,label,kind,pos,w,h=0.62,fs=12,bold=False):
             f'shape=box, style="{style}", fixedsize=true, width="{w}", height="{h}", '
             f'fontsize="{fs}", pos="{pos}"];\n')
 
-# TIME flows top -> bottom as a staircase:
-#  tracee (top): t1 t2 t3 ; tracer (middle, below t3): r4 r5 r6 ; tracee (bottom): t7
-#  center TraceeStatus sits in the gap; only two cross arrows: SIGCHLD (over it) + wake (under it)
-# LEFT lane x=150 ; CENTER x=470 ; RIGHT x=800
+def fbox(nid, lines, kind, pos, w, h, fs=11):
+    # 固定大小圆角框；HTML 表格，整体居中；第一行（标题）加粗
+    fill,border,fcol=PAL[kind]
+    rows=""
+    for i,ln in enumerate(lines):
+        t=ln.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+        if i==0: t=f"<B>{t}</B>"
+        rows+=f'<TR><TD ALIGN="CENTER"><FONT POINT-SIZE="{fs}">{t}</FONT></TD></TR>'
+    lbl='<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2">'+rows+'</TABLE>>'
+    return (f'  {nid} [label={lbl}, fillcolor="{fill}", color="{border}", fontcolor="{fcol}", '
+            f'fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, '
+            f'fixedsize=true, width="{w}", height="{h}", pos="{pos}"];\n')
 
-# --- TRACEE lane TOP ---
-b += fnode("t_title","tracee 线程","core","150,600",2.0,0.55,13,True)
-b += fnode("t1","tracee 触发停止\\ndo_ptrace_stop","core","150,520",2.4,0.66)
-b += fnode("t2","① 持锁写快照、is_stopped=true\\n再释放锁","core","150,425",2.7,0.74)
-b += fnode("t3","③ 挂起\\npause_until(!is_stopped)","core","150,335",2.6,0.72)
+def cont(nid, pos, w, h, border):
+    # 大容器框：白底、彩色粗边、圆角；先声明（在底层），小块画在其上
+    return (f'  {nid} [label="", fillcolor="white", color="{border}", shape=box, '
+            f'style="rounded,filled", penwidth=2.4, fixedsize=true, width="{w}", height="{h}", pos="{pos}"];\n')
 
-# --- TRACER lane MIDDLE (all below t3) ---
-b += fnode("r_title","tracer 线程","user","800,395",2.0,0.55,13,True)
-b += fnode("r4","④ wait：持锁 + 查 is_stopped","user","800,315",2.9,0.66)
-b += fnode("r5","⑤ 读/改寄存器快照\\n持锁 + check_ptrace_stopped","user","800,215",2.9,0.74)
-b += fnode("r6","⑥ resume：持锁\\nis_stopped = false","user","800,115",2.9,0.66)
+def gtitle(nid, text, pos, color, fs=14):
+    return (f'  {nid} [shape=plaintext, style="filled", fillcolor="white", '
+            f'fontname="{FONT}", fontcolor="{color}", '
+            f'fontsize="{fs}", label=<<B>{text}</B>>, pos="{pos}"];\n')
 
-# --- TRACEE lane BOTTOM (below r6) ---
-b += fnode("t7","⑦ 被唤醒，持锁读回快照\\n继续运行","core","150,85",2.7,0.66)
+# 三个大框：tracee 小块 | 中间共享对象 | tracer 小块；左右两框连边到中间框
+# 容器先声明（底层），随后标题与小块画在其上
+b += cont("tracee_grp","200,372",3.6,5.6,"#2F9D57")
+b += cont("center_grp","500,372",3.6,2.35,"#6F42C1")
+b += cont("tracer_grp","800,372",3.6,5.6,"#C8881A")
 
-# --- CENTER: shared TraceeStatus (flush stacked, sits in the middle gap) ---
-cw=3.3
-b += fnode("c_title","TraceeStatus 共享对象","sec","470,262",cw,0.46,13,True)
-b += fnode("c_mtx","state: Mutex<TraceeState>\\n寄存器快照、待决信号、event、options","sec","470,220",cw,0.72,11)
-b += fnode("c_atom","is_stopped: AtomicBool","sec","470,178",cw,0.46,12)
+b += gtitle("tracee_t","tracee 线程","200,552","#1c6035")
+b += gtitle("center_t","TraceeStatus 共享对象","500,435","#48227f")
+b += gtitle("tracer_t","tracer 线程","800,552","#7a5200")
+
+# --- TRACEE 小块（左框内，等宽 TW） ---
+TW=3.3
+b += fbox("t_stop",["进入 ptrace-stop","获取锁","保存信号、寄存器、event 到锁内","置 is_stopped = true","释放锁"],"core","200,470",TW,1.42,11)
+b += fbox("t_park",["挂起，等待 tracer","pause_until(!is_stopped)","SIGKILL 可随时打断"],"core","200,345",TW,0.92,11)
+b += fbox("t_wake",["被唤醒，继续运行","获取锁，读回快照","释放锁"],"core","200,238",TW,0.92,11)
+
+# --- TRACER 小块（右框内，等宽 RW） ---
+RW=3.4
+b += fbox("r_wait",["wait 报告","获取锁","取 wait4 状态后释放锁"],"user","800,488",RW,0.92,11)
+b += fbox("r_inspect",["读 / 改寄存器、内存","获取锁，检查 is_stopped","读 / 写寄存器快照、读 / 写用户空间","释放锁"],"user","800,360",RW,1.15,11)
+b += fbox("r_resume",["resume","获取锁","注入 / 清除待决信号","置 is_stopped = false","释放锁"],"user","800,228",RW,1.42,11)
+
+# --- CENTER 共享对象（中间框内） ---
+CW=3.3
+b += fbox("c_mtx",["state: Mutex<TraceeState>","寄存器快照、待决信号、event、options"],"sec","500,378",CW,0.72,11)
+b += fbox("c_atom",["is_stopped: AtomicBool"],"sec","500,323",CW,0.46,11)
 
 # ============ EDGES ============
-# tracee vertical flow (green) — top group
-b += '  t1:s -> t2:n [color="#2F9D57"];\n'
-b += '  t2:s -> t3:n [color="#2F9D57"];\n'
-# tracer vertical flow (amber) — middle group
-b += '  r4:s -> r5:n [color="#C8881A"];\n'
-b += '  r5:s -> r6:n [color="#C8881A"];\n'
-# ② SIGCHLD : tracee (AFTER t2, lock released) -> tracer wait r4，直线掠过共享对象上方
-b += '  t2:e -> r4:w [color="#2F9D57"];\n'
-# ⑥ resume -> tracee wake : r6 -> t7，直线掠过共享对象下方
-b += '  r6:w -> t7:e [color="#2F9D57"];\n'
-
-# text labels
-b += tlabel("L_sigchld","② SIGCHLD + 唤醒 wait","500,382","#2F9D57")
-b += tlabel("L_wake","⑥ is_stopped=false，唤醒 tracee","505,92","#2F9D57")
+# 各线程内部顺序流
+b += '  t_stop:s -> t_park:n [color="#2F9D57"];\n'
+b += '  r_wait:s -> r_inspect:n [color="#C8881A"];\n'
+b += '  r_inspect:s -> r_resume:n [color="#C8881A"];\n'
+# 左右大框 <-> 中间共享对象
+b += '  tracee_grp:e -> center_grp:w [dir=both, color="#6F42C1", penwidth=2.2];\n'
+b += '  tracer_grp:w -> center_grp:e [dir=both, color="#6F42C1", penwidth=2.2];\n'
+# SIGCHLD：tracee 释放锁后通知 tracer（绕中间框上方）
+b += '  wsig [shape=point, width=0.01, style=invis, pos="500,538"];\n'
+b += '  t_stop:e -> wsig [color="#2F9D57", arrowhead=none];\n'
+b += '  wsig -> r_wait:w [color="#2F9D57"];\n'
+b += tlabel("L_sig","向tracer发送 SIGCHLD\n唤醒挂起在 wait 的 tracer","500,525","#1c6035")
+# 唤醒：tracer resume 唤醒 tracee（绕中间框下方，用 tracer 的颜色）
+b += '  wwake [shape=point, width=0.01, style=invis, pos="500,188"];\n'
+b += '  r_resume:w -> wwake [color="#C8881A", arrowhead=none];\n'
+b += '  wwake -> t_wake:e [color="#C8881A"];\n'
+b += tlabel("L_wk","唤醒挂起在 ptrace stop 的 tracee","500,202","#7a5200")
 
 dotS = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
