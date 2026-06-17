@@ -1,18 +1,18 @@
 digraph G {
   graph [fontname="PingFang SC", bgcolor="white", pad="0.3", splines=true];
-  node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.14,0.09", fontsize=12];
+  node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.1,0.06", fontsize=11];
   edge [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
-  b1 [label="① maps 定位代码映射", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="-41.4,561.4"];
-  b2 [label="② PEEKTEXT 读原指令", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="-41.4,496.4"];
-  b3 [label="③ POKETEXT 写 int3", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="-41.4,431.4"];
-  b4 [label="④ 命中 #BP → SIGTRAP", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", pos="288.6,441.4"];
-  b5 [label="⑤ ptrace-stop 保存现场", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="430.0,500.0"];
-  b6 [label="⑥ wait 返回 SIGTRAP", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="571.4,441.4"];
-  b7 [label="⑦ GET/SETREGS 修正 RIP", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="630.0,300.0"];
-  b8 [label="⑧ 恢复原指令", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="571.4,158.6"];
-  b9 [label="⑨ SINGLESTEP 走一步", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="430.0,100.0"];
-  b10 [label="⑩ 重新写回 int3", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="288.6,158.6"];
-  b11 [label="⑪ CONT 继续", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="230.0,300.0"];
+  b1 [label="① maps 定位代码映射", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="63.3,536.7"];
+  b2 [label="② PEEKTEXT 读原指令", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="63.3,471.7"];
+  b3 [label="③ POKETEXT 写 int3", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="63.3,406.7"];
+  b4 [label="④ 命中 #BP → SIGTRAP", fillcolor="#F8F6E0", color="#9A9620", fontcolor="#5f5c10", pos="313.3,416.7"];
+  b5 [label="⑤ ptrace-stop 保存现场", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="430.0,465.0"];
+  b6 [label="⑥ wait 返回 SIGTRAP", fillcolor="#E3F4F4", color="#1F8585", fontcolor="#0f5151", pos="546.7,416.7"];
+  b7 [label="⑦ GET/SETREGS 修正 RIP", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="595.0,300.0"];
+  b8 [label="⑧ 恢复原指令", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="546.7,183.3"];
+  b9 [label="⑨ 设 TF 单步执行一条\n单步后再次进入 ptrace-stop", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="430.0,135.0"];
+  b10 [label="⑩ 重新写回 int3", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="313.3,183.3"];
+  b11 [label="⑪ CONT 继续", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="265.0,300.0"];
   hub [label="软件断点闭环\n（能力的组合，非独立模块）", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", pos="430.0,300.0", penwidth="2.4", fontsize="13"];
   b1 -> b2;
   b2 -> b3;
@@ -25,5 +25,5 @@ digraph G {
   b9 -> b10;
   b10 -> b11;
   b11 -> b4 [color="#C0463F", style="dashed", penwidth="1.6"];
-  fb [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#C0463F", pos="189.3,370.7", label="再次命中"];
+  fb [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#C0463F", pos="219.2,358.3", label="再次命中"];
 }

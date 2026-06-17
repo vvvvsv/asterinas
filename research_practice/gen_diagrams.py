@@ -350,7 +350,7 @@ render("08_register_abi", dot8, engine="neato", extra_args=["-n1"])
 # =====================================================================
 # ---- geometry ----
 cx, cy = 430, 300
-R = 200
+R = 165
 # ring steps b4..b11 (8 nodes). We want b11 adjacent to b4.
 # Going clockwise starting at b4. Place b4 at upper-left so the ①②③ tail enters from the left.
 # 8 angles spaced 45deg; b4 at 135deg, b11 lands at 180deg (left), adjacent to b4.
@@ -367,9 +367,9 @@ for i,n in enumerate(ring):
 
 # tail steps ①②③ leading into b4 from the left
 b4x, b4y = pos["b4"]
-pos["b1"] = (b4x-330, b4y+120)
-pos["b2"] = (b4x-330, b4y+55)
-pos["b3"] = (b4x-330, b4y-10)
+pos["b1"] = (b4x-250, b4y+120)
+pos["b2"] = (b4x-250, b4y+55)
+pos["b3"] = (b4x-250, b4y-10)
 # hub at center (centroid of ring node centers for true visual balance)
 hx = sum(pos[n][0] for n in ring)/len(ring)
 hy = sum(pos[n][1] for n in ring)/len(ring)
@@ -386,7 +386,7 @@ steps = {
  "b6":("⑥ wait 返回 SIGTRAP","proc"),
  "b7":("⑦ GET/SETREGS 修正 RIP","core"),
  "b8":("⑧ 恢复原指令","mem"),
- "b9":("⑨ SINGLESTEP 走一步","core"),
+ "b9":("⑨ 设 TF 单步执行一条\\n单步后再次进入 ptrace-stop","core"),
  "b10":("⑩ 重新写回 int3","mem"),
  "b11":("⑪ CONT 继续","user"),
 }
@@ -410,7 +410,7 @@ b += tlabel("fb","再次命中",f'{mx:.1f},{my:.1f}',color="#C0463F")
 
 dot9 = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
-  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.14,0.09", fontsize=12];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.1,0.06", fontsize=11];\n'
   f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
   + b + '}\n')
 render("09_breakpoint_loop", dot9, engine="neato", extra_args=["-n1"])
@@ -418,76 +418,26 @@ render("09_breakpoint_loop", dot9, engine="neato", extra_args=["-n1"])
 # =====================================================================
 # 10. 安全模型：access check + Yama 决策流
 # =====================================================================
-GREEN="#2F9D57"; RED="#C0463F"; GRAY="#5b6b7d"
-
-# ---- spine (y-up, points) ----
-SX=250
-y_req=480; y_same=388; y_ugid=296; y_cap=196; y_yama=92
-y_term=20
-allow_x=70; deny_x=430
-LANE_SAME=70     # green same->allow far-left lane
-LANE_UGID=140    # green ugid->yama lane (right of same lane)
-
-b=""
-b+=node("req","调试请求\\nptrace attach、proc mem","user",pos=f"{SX},{y_req}")
-b+=node("same","同进程？","ink",shape="diamond",style="filled",
-        width="1.4",height="0.62",fixedsize="true",pos=f"{SX},{y_same}")
-b+=node("ugid","UID/GID 匹配？\\n(Fs 或 Real creds)","sec",shape="diamond",style="filled",
-        width="2.3",height="0.95",fixedsize="true",pos=f"{SX},{y_ugid}")
-b+=node("cap","具备\\nCAP_SYS_PTRACE？","sec",shape="diamond",style="filled",
-        width="2.3",height="0.95",fixedsize="true",pos=f"{SX},{y_cap}")
-b+=node("yama","Yama LSM hook","sec",pos=f"{SX},{y_yama}")
-b+=node("allow","放行","core",pos=f"{allow_x},{y_term}")
-b+=node("deny","拒绝 EPERM / EACCES","mem",pos=f"{deny_x},{y_term}")
-# invisible waypoint to route ugid->yama cleanly around cap (left corridor)
-b+=f'  wp_uy [shape=point, width=0.001, color="white", pos="{LANE_UGID},{(y_cap+y_yama)/2}"];\n'
-
-# ---- edges ----
-b+=f'  req -> same [color="{GRAY}"];\n'
-b+=f'  same -> ugid [color="{GRAY}"];\n'
-b+=f'  ugid -> cap [color="{GRAY}"];\n'
-b+=f'  cap -> yama [color="{GRAY}"];\n'
-# same -> allow (green): far-left lane
-b+=f'  same:w -> allow:n [color="{GREEN}", penwidth=1.6, pos="e,{allow_x},{y_term+22} {LANE_SAME},{y_same} {LANE_SAME},{y_term+90}"];\n'
-# ugid -> yama (green, 是): route through invisible waypoint left of cap
-b+=f'  ugid:w -> wp_uy [color="{GREEN}", penwidth=1.6, arrowhead=none];\n'
-b+=f'  wp_uy -> yama:w [color="{GREEN}", penwidth=1.6];\n'
-# cap -> deny (red): right diagonal to deny
-b+=f'  cap:e -> deny:n [color="{RED}", penwidth=1.6, pos="e,{deny_x},{y_term+22} {SX+170},{y_cap} {deny_x},{y_cap-30}"];\n'
-# yama -> allow (green): hop down-left into allow right
-b+=f'  yama:sw -> allow:e [color="{GREEN}", penwidth=1.6];\n'
-# yama -> deny (red): hop down-right into deny left/nw
-b+=f'  yama:se -> deny:nw [color="{RED}", penwidth=1.6];\n'
-
-# ---- tlabels ----
-b+=tlabel("L_same_y","是",f"{LANE_SAME+22},{(y_same+y_term)/2+50}",GREEN)
-b+=tlabel("L_same_n","否",f"{SX+22},{(y_same+y_ugid)/2}",GRAY)
-b+=tlabel("L_ugid_y","是",f"{LANE_UGID+22},{(y_ugid+y_cap)/2-14}",GREEN)
-b+=tlabel("L_ugid_n","否",f"{SX+22},{(y_ugid+y_cap)/2}",GRAY)
-b+=tlabel("L_cap_y","是",f"{SX+22},{(y_cap+y_yama)/2}",GRAY)
-b+=tlabel("L_cap_n","否",f"{SX+200},{(y_cap+y_term)/2+30}",RED)
-b+=tlabel("L_yama_p","scope 通过",f"{SX-86},{y_yama-46}",GREEN)
-b+=tlabel("L_yama_d","scope 拒绝",f"{SX+92},{y_yama-46}",RED)
-
-# ---- compact Yama scope legend (right side) ----
-LX=650
-ly_title=362
-dy=60
-ly0=300
-ly=[ly0, ly0-dy, ly0-2*dy, ly0-3*dy]
-b+=tlabel("scope_title","Yama ptrace_scope",f"{LX},{ly_title}","#48227f")
-for nid,txt,yy in [("y0","0 Disabled、不额外限制",ly[0]),
-                   ("y1","1 Relational（默认）、仅祖先 / CAP",ly[1]),
-                   ("y2","2 Capability、仅 CAP_SYS_PTRACE",ly[2]),
-                   ("y3","3 NoAttach、全禁，设置后不可降级",ly[3])]:
-    b+=node(nid,txt,"sec",fontsize="11",margin="0.14,0.07",pos=f"{LX},{yy}")
-
-dot10 = ('digraph G {\n'
-  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
-  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];\n'
-  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
-  + b + '}\n')
-render("10_security_model", dot10, engine="neato", extra_args=["-n1"])
+b  = '  node [margin="0.1,0.035"];\n'
+b += node("req", "调试请求\\nptrace attach / proc mem", "user")
+b += node("same", "同进程？", "ink", shape="diamond", style="filled")
+b += node("ugid", "UID/GID 匹配？\\n(Fs 或 Real creds)", "sec", shape="diamond", style="filled")
+b += node("cap", "具备 CAP_SYS_PTRACE？", "sec", shape="diamond", style="filled")
+b += node("yama", "Yama LSM hook", "sec")
+b += node("allow", "放行", "core")
+b += node("deny", "拒绝 EPERM/EACCES", "mem")
+b += '''
+  req -> same;
+  same -> allow [label="是", color="#2F9D57"];
+  same -> ugid [label="否"];
+  ugid -> cap [label="否"];
+  ugid -> yama [label="是"];
+  cap -> yama [label="是"];
+  cap -> deny [label="否", color="#C0463F"];
+  yama -> allow [label="scope 通过", color="#2F9D57"];
+  yama -> deny [label="scope 拒绝", color="#C0463F"];
+'''
+render("10_security_model", wrap(b, extra='rankdir=TB, nodesep="0.22", ranksep="0.32"'))
 
 # =====================================================================
 # 11. 实现进度时间线（里程碑）

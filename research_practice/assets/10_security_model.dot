@@ -1,36 +1,24 @@
 digraph G {
-  graph [fontname="PingFang SC", bgcolor="white", pad="0.3", splines=true];
-  node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
-  edge [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
-  req [label="调试请求\nptrace attach、proc mem", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="250,480"];
-  same [label="同进程？", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f", shape="diamond", style="filled", width="1.4", height="0.62", fixedsize="true", pos="250,388"];
-  ugid [label="UID/GID 匹配？\n(Fs 或 Real creds)", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape="diamond", style="filled", width="2.3", height="0.95", fixedsize="true", pos="250,296"];
-  cap [label="具备\nCAP_SYS_PTRACE？", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape="diamond", style="filled", width="2.3", height="0.95", fixedsize="true", pos="250,196"];
-  yama [label="Yama LSM hook", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", pos="250,92"];
-  allow [label="放行", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="70,20"];
-  deny [label="拒绝 EPERM / EACCES", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="430,20"];
-  wp_uy [shape=point, width=0.001, color="white", pos="140,144.0"];
-  req -> same [color="#5b6b7d"];
-  same -> ugid [color="#5b6b7d"];
-  ugid -> cap [color="#5b6b7d"];
-  cap -> yama [color="#5b6b7d"];
-  same:w -> allow:n [color="#2F9D57", penwidth=1.6, pos="e,70,42 70,388 70,110"];
-  ugid:w -> wp_uy [color="#2F9D57", penwidth=1.6, arrowhead=none];
-  wp_uy -> yama:w [color="#2F9D57", penwidth=1.6];
-  cap:e -> deny:n [color="#C0463F", penwidth=1.6, pos="e,430,42 420,196 430,166"];
-  yama:sw -> allow:e [color="#2F9D57", penwidth=1.6];
-  yama:se -> deny:nw [color="#C0463F", penwidth=1.6];
-  L_same_y [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#2F9D57", pos="92,254.0", label="是"];
-  L_same_n [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#5b6b7d", pos="272,342.0", label="否"];
-  L_ugid_y [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#2F9D57", pos="162,232.0", label="是"];
-  L_ugid_n [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#5b6b7d", pos="272,246.0", label="否"];
-  L_cap_y [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#5b6b7d", pos="272,144.0", label="是"];
-  L_cap_n [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#C0463F", pos="450,138.0", label="否"];
-  L_yama_p [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#2F9D57", pos="164,46", label="scope 通过"];
-  L_yama_d [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#C0463F", pos="342,46", label="scope 拒绝"];
-  scope_title [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#48227f", pos="650,362", label="Yama ptrace_scope"];
-  y0 [label="0 Disabled、不额外限制", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", fontsize="11", margin="0.14,0.07", pos="650,300"];
-  y1 [label="1 Relational（默认）、仅祖先 / CAP", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", fontsize="11", margin="0.14,0.07", pos="650,240"];
-  y2 [label="2 Capability、仅 CAP_SYS_PTRACE", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", fontsize="11", margin="0.14,0.07", pos="650,180"];
-  y3 [label="3 NoAttach、全禁，设置后不可降级", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", fontsize="11", margin="0.14,0.07", pos="650,120"];
+
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.35", rankdir=TB, nodesep="0.22", ranksep="0.32"];
+  node  [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
+  edge  [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  node [margin="0.1,0.035"];
+  req [label="调试请求\nptrace attach / proc mem", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200"];
+  same [label="同进程？", fillcolor="#EEF1F5", color="#3a4a5c", fontcolor="#22303f", shape="diamond", style="filled"];
+  ugid [label="UID/GID 匹配？\n(Fs 或 Real creds)", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape="diamond", style="filled"];
+  cap [label="具备 CAP_SYS_PTRACE？", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape="diamond", style="filled"];
+  yama [label="Yama LSM hook", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f"];
+  allow [label="放行", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035"];
+  deny [label="拒绝 EPERM/EACCES", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723"];
+
+  req -> same;
+  same -> allow [label="是", color="#2F9D57"];
+  same -> ugid [label="否"];
+  ugid -> cap [label="否"];
+  ugid -> yama [label="是"];
+  cap -> yama [label="是"];
+  cap -> deny [label="否", color="#C0463F"];
+  yama -> allow [label="scope 通过", color="#2F9D57"];
+  yama -> deny [label="scope 拒绝", color="#C0463F"];
 }
