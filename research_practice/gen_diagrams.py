@@ -256,30 +256,33 @@ b += node("src2", "/proc/&lt;pid&gt;/mem", "user", pos="450,560")
 b += node("chk", "权限 + 停止态检查", "sec", pos="320,460")
 # entry primitive
 b += node("entry", "read_alien / write_alien / fill_zeros_alien\\n统一收敛到 access_alien() 原语", "core", pos="320,360")
-# query
-b += node("query", "query_page_with_required_flags\\n在目标 VmSpace 按页查询映射、权限\\n（不切换地址空间）", "core", pos="320,250")
+# query (人话：不提 VmSpace 等类型名)
+b += node("query", "query_page_with_required_flags\\n按页查询目标进程的地址空间映射、权限\\n（不切换页表、不切换地址空间）", "core", pos="320,250")
 # branches
-b += node("frame", "命中 RAM UFrame\\nframe.reader()/writer() 直接拷贝", "mem", pos="140,110")
-b += node("fault", "缺页 / 权限不足\\nhandle_page_fault(.force()) 后重试", "event", pos="560,110")
+b += node("frame", "命中物理页帧\\n直接拷贝数据", "mem", pos="110,95")
+b += node("fault", "缺页 / 权限不足\\n主动触发缺页处理后重试", "event", pos="565,95")
 
-# edges
-b += "  src1:s -> chk:nw [arrowhead=normal];\n"
-b += "  src2:s -> chk:ne [arrowhead=normal];\n"
+# spine
+b += "  src1:s -> chk:nw;\n"
+b += "  src2:s -> chk:ne;\n"
 b += "  chk:s -> entry:n;\n"
 b += "  entry:s -> query:n;\n"
-b += '  query:sw -> frame:n [color="#2F9D57"];\n'
-b += '  query:se -> fault:n [color="#C0463F"];\n'
-# retry loop: out fault east, up, back into query east
-b += '  wp1 [shape=point, width=0.01, style=invis, pos="720,110"];\n'
-b += '  wp2 [shape=point, width=0.01, style=invis, pos="720,250"];\n'
+# clean symmetric branch: query:s -> junction -> frame / fault
+b += '  jct [shape=point, width=0.01, style=invis, pos="320,180"];\n'
+b += '  query:s -> jct [arrowhead=none, color="#5b6b7d"];\n'
+b += '  jct -> frame:ne [color="#2F9D57"];\n'
+b += '  jct -> fault:nw [color="#C0463F"];\n'
+# retry loop: out fault east, up, back into query east（直角，不交叉）
+b += '  wp1 [shape=point, width=0.01, style=invis, pos="710,95"];\n'
+b += '  wp2 [shape=point, width=0.01, style=invis, pos="710,250"];\n'
 b += '  fault:e -> wp1 [arrowhead=none, color="#C0463F", style=dashed];\n'
 b += '  wp1 -> wp2 [arrowhead=none, color="#C0463F", style=dashed];\n'
 b += '  wp2 -> query:e [color="#C0463F", style=dashed];\n'
 
 # labels (separate white-bg text boxes)
-b += tlabel("l_frame", "映射存在且权限满足", "170,185", color="#1c6035")
-b += tlabel("l_fault", "需要处理", "490,185", color="#7d2723")
-b += tlabel("l_retry", "重试", "720,185", color="#7d2723")
+b += tlabel("l_frame", "映射存在且权限满足", "225,150", color="#1c6035")
+b += tlabel("l_fault", "需要处理", "405,150", color="#7d2723")
+b += tlabel("l_retry", "重试", "710,175", color="#7d2723")
 
 dot7 = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
@@ -634,6 +637,68 @@ for (nid, _, _, _) in ring:
     parts.append(f'  hub -> {nid} [color="#2F9D57"];')
 parts.append('}')
 render("00_background", "\n".join(parts), engine="neato", extra_args=["-n1"])
+
+# =====================================================================
+# 4b. tracer / tracee 同步：TraceeStatus 上的一把锁 + is_stopped 原子标志
+#     固定坐标（neato -n1）：双泳道 + 中间共享对象
+# =====================================================================
+b = ""
+
+def fnode(nid,label,kind,pos,w,h=0.62,fs=12,bold=False):
+    fill,border,font=PAL[kind]
+    style="rounded,filled,bold" if bold else "rounded,filled"
+    return (f'  {nid} [label="{label}", fillcolor="{fill}", color="{border}", fontcolor="{font}", '
+            f'shape=box, style="{style}", fixedsize=true, width="{w}", height="{h}", '
+            f'fontsize="{fs}", pos="{pos}"];\n')
+
+# TIME flows top -> bottom as a staircase:
+#  tracee (top): t1 t2 t3 ; tracer (middle, below t3): r4 r5 r6 ; tracee (bottom): t7
+#  center TraceeStatus sits in the gap; only two cross arrows: SIGCHLD (over it) + wake (under it)
+# LEFT lane x=150 ; CENTER x=470 ; RIGHT x=800
+
+# --- TRACEE lane TOP ---
+b += fnode("t_title","tracee 线程","core","150,600",2.0,0.55,13,True)
+b += fnode("t1","tracee 触发停止\\ndo_ptrace_stop","core","150,520",2.4,0.66)
+b += fnode("t2","① 持锁写快照、is_stopped=true\\n再释放锁","core","150,425",2.7,0.74)
+b += fnode("t3","③ 挂起\\npause_until(!is_stopped)","core","150,335",2.6,0.72)
+
+# --- TRACER lane MIDDLE (all below t3) ---
+b += fnode("r_title","tracer 线程","user","800,395",2.0,0.55,13,True)
+b += fnode("r4","④ wait：持锁 + 查 is_stopped","user","800,315",2.9,0.66)
+b += fnode("r5","⑤ 读/改寄存器快照\\n持锁 + check_ptrace_stopped","user","800,215",2.9,0.74)
+b += fnode("r6","⑥ resume：持锁\\nis_stopped = false","user","800,115",2.9,0.66)
+
+# --- TRACEE lane BOTTOM (below r6) ---
+b += fnode("t7","⑦ 被唤醒，持锁读回快照\\n继续运行","core","150,85",2.7,0.66)
+
+# --- CENTER: shared TraceeStatus (flush stacked, sits in the middle gap) ---
+cw=3.3
+b += fnode("c_title","TraceeStatus 共享对象","sec","470,262",cw,0.46,13,True)
+b += fnode("c_mtx","state: Mutex<TraceeState>\\n寄存器快照、待决信号、event、options","sec","470,220",cw,0.72,11)
+b += fnode("c_atom","is_stopped: AtomicBool","sec","470,178",cw,0.46,12)
+
+# ============ EDGES ============
+# tracee vertical flow (green) — top group
+b += '  t1:s -> t2:n [color="#2F9D57"];\n'
+b += '  t2:s -> t3:n [color="#2F9D57"];\n'
+# tracer vertical flow (amber) — middle group
+b += '  r4:s -> r5:n [color="#C8881A"];\n'
+b += '  r5:s -> r6:n [color="#C8881A"];\n'
+# ② SIGCHLD : tracee (AFTER t2, lock released) -> tracer wait r4，直线掠过共享对象上方
+b += '  t2:e -> r4:w [color="#2F9D57"];\n'
+# ⑥ resume -> tracee wake : r6 -> t7，直线掠过共享对象下方
+b += '  r6:w -> t7:e [color="#2F9D57"];\n'
+
+# text labels
+b += tlabel("L_sigchld","② SIGCHLD + 唤醒 wait","500,382","#2F9D57")
+b += tlabel("L_wake","⑥ is_stopped=false，唤醒 tracee","505,92","#2F9D57")
+
+dotS = ('digraph G {\n'
+  f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
+  f'  node [fontname="{FONT}", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=12];\n'
+  f'  edge [fontname="{FONT}", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];\n'
+  + b + '}\n')
+render("04b_sync", dotS, engine="neato", extra_args=["-n1"])
 
 print("ALL DONE ->", OUT)
 

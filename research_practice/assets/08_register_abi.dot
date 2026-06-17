@@ -3,7 +3,7 @@ digraph G {
   node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=13];
   edge [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
   trap [label="tracee 陷入内核\n保存用户寄存器上下文", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", pos="880.0,480"];
-  snap [label="进入 ptrace-stop\n复制用户寄存器上下文到寄存器快照", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="880.0,400"];
+  snap [label="进入 ptrace-stop\n持锁复制用户寄存器上下文到寄存器快照", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", pos="880.0,400"];
   rule [label="tracer 持锁修改寄存器快照\n字段级访问策略", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", penwidth="2.4", pos="880.0,320"];
   set [label="rax..r15\ntracer 自由修改", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="580,230"];
   setif [label="rip/rsp/fs/gsbase\n必须是用户地址", fillcolor="#FFEAEA", color="#C0463F", fontcolor="#7d2723", pos="730,230"];

@@ -1,0 +1,25 @@
+digraph G {
+  graph [fontname="PingFang SC", bgcolor="white", pad="0.3", splines=true];
+  node [fontname="PingFang SC", shape=box, style="rounded,filled", penwidth=1.5, margin="0.16,0.10", fontsize=12];
+  edge [fontname="PingFang SC", color="#5b6b7d", penwidth=1.4, arrowsize=0.85, fontsize=11];
+  t_title [label="tracee 线程", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape=box, style="rounded,filled,bold", fixedsize=true, width="2.0", height="0.55", fontsize="13", pos="150,600"];
+  t1 [label="tracee 触发停止\ndo_ptrace_stop", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape=box, style="rounded,filled", fixedsize=true, width="2.4", height="0.66", fontsize="12", pos="150,520"];
+  t2 [label="① 持锁写快照、is_stopped=true\n再释放锁", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape=box, style="rounded,filled", fixedsize=true, width="2.7", height="0.74", fontsize="12", pos="150,425"];
+  t3 [label="③ 挂起\npause_until(!is_stopped)", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape=box, style="rounded,filled", fixedsize=true, width="2.6", height="0.72", fontsize="12", pos="150,335"];
+  r_title [label="tracer 线程", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape=box, style="rounded,filled,bold", fixedsize=true, width="2.0", height="0.55", fontsize="13", pos="800,395"];
+  r4 [label="④ wait：持锁 + 查 is_stopped", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape=box, style="rounded,filled", fixedsize=true, width="2.9", height="0.66", fontsize="12", pos="800,315"];
+  r5 [label="⑤ 读/改寄存器快照\n持锁 + check_ptrace_stopped", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape=box, style="rounded,filled", fixedsize=true, width="2.9", height="0.74", fontsize="12", pos="800,215"];
+  r6 [label="⑥ resume：持锁\nis_stopped = false", fillcolor="#FFF3DC", color="#C8881A", fontcolor="#7a5200", shape=box, style="rounded,filled", fixedsize=true, width="2.9", height="0.66", fontsize="12", pos="800,115"];
+  t7 [label="⑦ 被唤醒，持锁读回快照\n继续运行", fillcolor="#E5F8EE", color="#2F9D57", fontcolor="#1c6035", shape=box, style="rounded,filled", fixedsize=true, width="2.7", height="0.66", fontsize="12", pos="150,85"];
+  c_title [label="TraceeStatus 共享对象", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape=box, style="rounded,filled,bold", fixedsize=true, width="3.3", height="0.46", fontsize="13", pos="470,262"];
+  c_mtx [label="state: Mutex<TraceeState>\n寄存器快照、待决信号、event、options", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape=box, style="rounded,filled", fixedsize=true, width="3.3", height="0.72", fontsize="11", pos="470,220"];
+  c_atom [label="is_stopped: AtomicBool", fillcolor="#F1E9FF", color="#6F42C1", fontcolor="#48227f", shape=box, style="rounded,filled", fixedsize=true, width="3.3", height="0.46", fontsize="12", pos="470,178"];
+  t1:s -> t2:n [color="#2F9D57"];
+  t2:s -> t3:n [color="#2F9D57"];
+  r4:s -> r5:n [color="#C8881A"];
+  r5:s -> r6:n [color="#C8881A"];
+  t2:e -> r4:w [color="#2F9D57"];
+  r6:w -> t7:e [color="#2F9D57"];
+  L_sigchld [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#2F9D57", pos="500,382", label="② SIGCHLD + 唤醒 wait"];
+  L_wake [shape=box, style="filled", fillcolor="white", color="white", penwidth=0, margin="0.03,0.01", fontsize=11, fontcolor="#2F9D57", pos="505,92", label="⑥ is_stopped=false，唤醒 tracee"];
+}
