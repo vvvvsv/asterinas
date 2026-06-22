@@ -71,7 +71,9 @@ def parse(md):
             cur["blocks"].append(("h3", s[4:].strip())); i += 1; continue
         if s.startswith("> "):
             q = s[2:].strip()
-            if not q.startswith("视觉建议") and not q.startswith("节奏建议"):
+            if q.startswith("备注：") or q.startswith("备注:"):
+                cur["blocks"].append(("note", q[3:].strip()))
+            elif not q.startswith("视觉建议") and not q.startswith("节奏建议"):
                 cur["blocks"].append(("quote", q))
             i += 1; continue
         mb = re.match(r'^(\s*)-\s+(.*)$', ln)
@@ -183,6 +185,13 @@ def build(prs, sl, BG):
     h1s = [b[1] for b in blocks if b[0] == "h1"]
     h3s = [b[1] for b in blocks if b[0] == "h3"]
     s = prs.slides.add_slide(prs.slide_layouts[L_BLANK])
+
+    notes = [b[1] for b in blocks if b[0] == "note"]
+    if notes:
+        ntf = s.notes_slide.notes_text_frame
+        ntf.text = notes[0]
+        for n in notes[1:]:
+            ntf.add_paragraph().text = n
 
     if "封面" in title:
         set_bg(s, BG["dark"])

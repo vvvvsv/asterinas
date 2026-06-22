@@ -348,67 +348,41 @@ render("08_register_abi", dot8, engine="neato", extra_args=["-n1"])
 # =====================================================================
 # 9. 断点闭环（环形流程）
 # =====================================================================
-# 4×4 蛇形网格：固定坐标对齐；tracee 块=绿(core)，tracer 块=黄(user)
-COL = [0, 200, 400, 600]
-R1, R2, R3, R4 = 300, 200, 100, 0
+# 2×4 蛇形网格（精简版）：固定坐标对齐；tracee 块=绿(core)，tracer 块=黄(user)
+COL = [0, 230, 460, 690]
+R1, R2 = 120, 0
 T="core"; U="user"
 cells = [
-  ("b1", "命中 #BP\\n→ SIGTRAP",            T, COL[0], R1),
-  ("b2", "ptrace-stop\\n保存现场",           T, COL[1], R1),
-  ("b3", "wait(tracee)\\n返回",              U, COL[2], R1),
-  ("b4", "读寄存器 rip",                     U, COL[3], R1),
-  ("b5", "写寄存器\\nrip -= 1",              U, COL[3], R2),
-  ("b6", "写用户空间\\n恢复原指令",            U, COL[2], R2),
-  ("b7", "设置 CPU\\ntrap flag",             U, COL[1], R2),
-  ("b8", "resume tracee",                   U, COL[0], R2),
-  ("b9", "tracee 执行一步\\n原指令后陷入内核",  T, COL[0], R3),
-  ("b10","命中 #DB\\n→ SIGTRAP",             T, COL[1], R3),
-  ("b11","ptrace-stop\\n保存现场",           T, COL[2], R3),
-  ("b12","wait(tracee)\\n返回",              U, COL[3], R3),
-  ("b13","写用户空间\\nINT3",                U, COL[3], R4),
-  ("b14","清除 CPU\\ntrap flag",             U, COL[2], R4),
-  ("b15","resume tracee",                   U, COL[1], R4),
-  ("b16","tracee 再次\\n走到断点",            T, COL[0], R4),
+  ("b1", "设置断点\\n定位代码、写 int3",       U, COL[0], R1),
+  ("b2", "命中 #BP → SIGTRAP\\n进入 ptrace-stop", T, COL[1], R1),
+  ("b3", "wait 返回\\n报告命中",              U, COL[2], R1),
+  ("b4", "改 RIP\\n恢复原指令",               U, COL[3], R1),
+  ("b5", "设 TF\\n单步执行一条",              U, COL[3], R2),
+  ("b6", "单步 #DB\\n再次 ptrace-stop",       T, COL[2], R2),
+  ("b7", "重新写回 int3",                    U, COL[1], R2),
+  ("b8", "resume 继续",                      U, COL[0], R2),
 ]
 b = ""
-# 两个阶段底框（先声明，置于底层）
-b += '  bandA [label="", shape=box, style="rounded,filled", fillcolor="#EFF4FC", color="#9DB8DD", penwidth=1.4, fixedsize=true, width="10.7", height="2.55", pos="300,252"];\n'
-b += '  bandB [label="", shape=box, style="rounded,filled", fillcolor="#F4EFFB", color="#C3ABE0", penwidth=1.4, fixedsize=true, width="10.7", height="2.55", pos="300,52"];\n'
-b += f'  ptitleA [shape=plaintext, style="filled", fillcolor="#EFF4FC", fontname="{FONT}", fontcolor="#1d3a66", fontsize="12", label="阶段一　命中断点，回退一步并准备单步", pos="300,252"];\n'
-b += f'  ptitleB [shape=plaintext, style="filled", fillcolor="#F4EFFB", fontname="{FONT}", fontcolor="#48227f", fontsize="12", label="阶段二　单步越过原指令后，恢复断点", pos="300,52"];\n'
 for nid,lab,kind,x,y in cells:
-    b += node(nid,lab,kind,pos=f"{x},{y}",width="1.85",height="0.56",fixedsize="true")
-# 一次性设置断点（横排在顶部，自右向左汇入 命中 #BP）；均为 tracer 操作
-b += node("s1","maps 定位代码映射","user",pos="400,392",width="1.85",height="0.52",fixedsize="true")
-b += node("s2","PEEKTEXT 读原指令","user",pos="200,392",width="1.85",height="0.52",fixedsize="true")
-b += node("s3","POKETEXT 写 int3","user",pos="0,392",width="1.85",height="0.52",fixedsize="true")
-b += tlabel("s_hdr","设置断点（一次性）","200,432",color="#7a5200")
+    b += node(nid,lab,kind,pos=f"{x},{y}",width="1.95",height="0.62",fixedsize="true")
 # 图例
-b += node("leg_t","tracee（被调试程序）执行","core",pos="600,410",width="2.4",height="0.42",fixedsize="true",fontsize="11")
-b += node("leg_r","tracer（调试器）操作","user",pos="600,368",width="2.4",height="0.42",fixedsize="true",fontsize="11")
-# 设置断点链 -> 进入循环
-b += '  s1:w -> s2:e [color="#5b6b7d"];\n'
-b += '  s2:w -> s3:e [color="#5b6b7d"];\n'
-b += '  s3:s -> b1:n [color="#5b6b7d"];\n'
+b += node("leg_t","tracee（被调试程序）","core",pos="230,205",width="2.4",height="0.42",fixedsize="true",fontsize="11")
+b += node("leg_r","tracer（调试器）","user",pos="510,205",width="2.4",height="0.42",fixedsize="true",fontsize="11")
 # 顺序流（灰，蛇形）
 seq_edges = [
   ("b1:e","b2:w"),("b2:e","b3:w"),("b3:e","b4:w"),
   ("b4:s","b5:n"),
   ("b5:w","b6:e"),("b6:w","b7:e"),("b7:w","b8:e"),
-  ("b8:s","b9:n"),
-  ("b9:e","b10:w"),("b10:e","b11:w"),("b11:e","b12:w"),
-  ("b12:s","b13:n"),
-  ("b13:w","b14:e"),("b14:w","b15:e"),("b15:w","b16:e"),
 ]
 for a,c in seq_edges:
     b += f'  {a} -> {c} [color="#5b6b7d"];\n'
 # 回到开头（红实线，走最左侧竖线）
-b += '  lb1 [shape=point, width=0.01, style=invis, pos="-115,0"];\n'
-b += '  lb2 [shape=point, width=0.01, style=invis, pos="-115,300"];\n'
-b += '  b16:w -> lb1 [arrowhead=none, color="#C0463F"];\n'
+b += '  lb1 [shape=point, width=0.01, style=invis, pos="-135,0"];\n'
+b += '  lb2 [shape=point, width=0.01, style=invis, pos="-135,120"];\n'
+b += '  b8:w -> lb1 [arrowhead=none, color="#C0463F"];\n'
 b += '  lb1 -> lb2 [arrowhead=none, color="#C0463F"];\n'
 b += '  lb2 -> b1:w [color="#C0463F"];\n'
-b += tlabel("fb","再次命中","-115,152",color="#C0463F")
+b += tlabel("fb","再次命中","-135,60",color="#C0463F")
 
 dot9 = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'

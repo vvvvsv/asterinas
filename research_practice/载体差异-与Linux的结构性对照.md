@@ -10,25 +10,46 @@
 
 # Part A — 与 Linux 的结构性对照
 
-## A1 — 在分层 POSIX 对象模型上重建跟踪关系，而非扁平 `task_struct`
+## A1 — 跟踪关系是「旁路 map」而非「reparent 进全局进程树」（已核 Linux v6.16）
 
-**Linux**：单一 `task_struct` 承载进程/线程/调度实体；ptrace 关系靠内嵌的
-`ptraced`/`ptrace_entry` 链表维护，受**全局 `tasklist_lock`** 保护。
+**Linux（已核 v6.16，`kernel/ptrace.c`）**：单一 `task_struct` 承载进程/线程/调度实体。
+ptrace **会 reparent**——`__ptrace_link` 把 tracee 挂进 tracer 的子节点并改其父指针：
 
-**Asterinas**：对象分层为 `Process` / `PosixThread` / `Thread` / `Task`，跟踪关系须
-**跨 `Process` ↔ `Thread` 边界**重建：tracer 用 `Weak<Thread>` 持有（防 `Arc` 引用环），
-tracee 表为 `BTreeMap<Tid, Arc<Thread>>`，用**细粒度 `Mutex` + 显式锁序**
-（`// Lock order: tracer.tracees -> tracee.tracee_status`）取代全局大锁。
+```c
+list_add(&child->ptrace_entry, &new_parent->ptraced);
+child->parent = new_parent;   // tracer 成为 tracee 的 parent
+```
 
-> 代码：`kernel/src/process/posix_thread/ptrace/mod.rs`（`attach_to`/`clear_tracees`/`TraceeStatus`）
+因为**改的是全局进程树**，attach/traceme/detach/exit 都得**全程持有全局写锁
+`write_lock_irq(&tasklist_lock)`**（`ptrace_attach`/`ptrace_traceme`/`ptrace_detach`/`exit_ptrace`），
+`ptrace_check_attach` 操作前还要 `read_lock(&tasklist_lock)` 配对校验关系。
+*nuance*：`tasklist_lock` 保护的是**关系拓扑**（链表+父指针）；每个 tracee 的 ptrace 标志位
+（`child->ptrace`、jobctl）另由 **per-task 的 `sighand->siglock`** 保护——拓扑全局锁、单任务状态 per-task 锁。
 
-| | Linux | Asterinas |
+**Asterinas**：对象分层为 `Process` / `PosixThread` / `Thread` / `Task`，跟踪是一条
+**旁路关系，根本不动进程树**：tracer 用 `Weak<Thread>` 持有 tracee（防 `Arc` 引用环），
+tracee 表为 tracer 自己的 `tracees: BTreeMap<Tid, Arc<Thread>>`，关系变更只碰**两把 per-object 锁**
+（文档化锁序 `// Lock order: tracer.tracees -> tracee.tracee_status`）。
+连 tracer 的 `wait` 都遍历这张旁路 map（`try_wait_tracees` 走 `tracees()`，不是 children 列表），
+所以**不需要把 tracee reparent 成 child**，也就不需要那把全局写锁。
+
+> 代码：`kernel/src/process/posix_thread/ptrace/mod.rs`（`attach_to`/`clear_tracees`/`TraceeStatus`）、`kernel/src/process/wait.rs`（`try_wait_tracees`）
+
+| | Linux v6.16（已核） | Asterinas |
 |---|---|---|
 | 承载实体 | 单一 `task_struct` | `Process`/`PosixThread`/`Thread`/`Task` 分层 |
-| 关系存储 | 内嵌链表 | `Weak<Thread>` + `BTreeMap<Tid, Arc<Thread>>` |
-| 并发保护 | 全局 `tasklist_lock` | 细粒度 `Mutex` + 显式锁序 |
+| 关系本质 | **reparent** 进全局进程树（改 `child->parent`） | 旁路 map（`tracees` + `Weak` tracer），不动进程树 |
+| 关系变更的锁 | **全程持有全局写锁** `tasklist_lock` | 两把 per-object `Mutex`，文档化锁序 |
+| wait 如何找 tracee | tracee 已是 child，走子进程链 | 遍历 tracer 自己的 `tracees` map |
+| 单任务 ptrace 状态 | per-task `sighand->siglock` | per-tracee `tracee_status` 锁 |
 
-**可讲的一句**：我们把 Linux 中由全局 `tasklist_lock` 保护的扁平 ptrace 关系表，重建为分层对象模型之上、基于 `Arc`/`Weak` 所有权与细粒度锁的跟踪关系。
+**可讲的一句**：Linux 的 ptrace 把 tracee reparent 进全局进程树，故 attach/detach/exit 须全程持有全局写锁 `tasklist_lock`；我们把跟踪做成不动进程树的旁路 map，关系变更只落在两把文档化锁序的 per-object 锁上。
+
+**前瞻：支持 `PTRACE_ATTACH` 要不要引入全局大锁？——不要。**
+当前主要支持 `TRACEME`（tracer 本就是 parent），但即便补上 `ATTACH` 也不需要全局大锁，因为关系已与进程树解耦：
+- 按 tid 找任意目标只需对全局 `PID_TABLE`（`pid_table.rs`）做一次**瞬时查表**拿 `Arc<Thread>` 即释放（类比 Linux `find_task_by_vpid`），**不跨 attach 操作持有**；
+- 建立关系仍是 `TRACEME` 用的同一对 per-object 锁（`tracees` → `tracee_status`），重复 attach 已由 `set_tracer` 返回 `EPERM` 挡住。
+- ⚠️ 诚实边界：① 准确说法是「**不需要跨关系变更持有的全局大锁**」，而非「零全局锁」（查表那刻 `PID_TABLE` 仍要锁）；② `ATTACH` 的真正难点不在锁，而在「**停一个正在运行的 tracee**」与「目标并发 exit/exec 的竞态」——这些是 per-object 工程量，仍不需要全局锁。
 
 ## A2 — 全安全 Rust 的调试通路：碰最危险的操作却零裸指针
 
@@ -160,3 +181,5 @@ page fault 重试、跨页拼接——这套**易错的循环只写一遍**，�
 | fsbase/gsbase 在 thread | `arch/x86/kernel/ptrace.c`：`x86_fsbase_read_task`/`x86_gsbase_read_task` |
 | debug regs 在 thread | `arch/x86/kernel/ptrace.c`：`ptrace_get_debugreg`/`ptrace_set_debugreg` |
 | 必须等 tracee 下 CPU | `kernel/ptrace.c`：`ptrace_check_attach` → `wait_task_inactive(child, __TASK_TRACED|TASK_FROZEN)` |
+| ptrace reparent + 全局写锁 | `kernel/ptrace.c`：`__ptrace_link`（`list_add(...&ptraced)` + `child->parent=`）；`ptrace_attach`/`ptrace_traceme`/`ptrace_detach`/`exit_ptrace` 全程持 `write_lock_irq(&tasklist_lock)`；`ptrace_check_attach` 持 `read_lock` |
+| 单任务 ptrace 状态用 siglock | `kernel/ptrace.c`：`__ptrace_unlink` 取 `child->sighand->siglock` 清 `child->ptrace`/jobctl |
