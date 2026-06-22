@@ -348,26 +348,34 @@ render("08_register_abi", dot8, engine="neato", extra_args=["-n1"])
 # =====================================================================
 # 9. 断点闭环（环形流程）
 # =====================================================================
-# 2×4 蛇形网格（精简版）：固定坐标对齐；tracee 块=绿(core)，tracer 块=黄(user)
-COL = [0, 230, 460, 690]
-R1, R2 = 120, 0
+# 4×2 蛇形网格 + 两条阶段带（蓝/紫）；设置断点在环外（4×2+1=9）
+# 固定坐标对齐；tracee 块=绿(core)，tracer 块=黄(user)
+COL = [0, 170, 340, 510]
+R1, R2 = 110, 10
 T="core"; U="user"
 cells = [
-  ("b1", "设置断点\\n定位代码、写 int3",       U, COL[0], R1),
-  ("b2", "命中 #BP → SIGTRAP\\n进入 ptrace-stop", T, COL[1], R1),
-  ("b3", "wait 返回\\n报告命中",              U, COL[2], R1),
-  ("b4", "改 RIP\\n恢复原指令",               U, COL[3], R1),
-  ("b5", "设 TF\\n单步执行一条",              U, COL[3], R2),
-  ("b6", "单步 #DB\\n再次 ptrace-stop",       T, COL[2], R2),
-  ("b7", "重新写回 int3",                    U, COL[1], R2),
-  ("b8", "resume 继续",                      U, COL[0], R2),
+  ("b1", "命中 #BP → SIGTRAP",   T, COL[0], R1),
+  ("b2", "进入 ptrace-stop\\n保存现场", T, COL[1], R1),
+  ("b3", "wait 返回\\n报告命中",   U, COL[2], R1),
+  ("b4", "改 RIP\\n恢复原指令",    U, COL[3], R1),
+  ("b5", "设 TF\\n单步执行一条",   U, COL[3], R2),
+  ("b6", "单步 #DB\\n再次 ptrace-stop", T, COL[2], R2),
+  ("b7", "重新写回 int3",         U, COL[1], R2),
+  ("b8", "resume 继续",           U, COL[0], R2),
 ]
 b = ""
+# 两条阶段带（先声明，置于底层）：阶段一蓝、阶段二紫
+b += '  bandA [label="", shape=box, style="rounded,filled", fillcolor="#EFF4FC", color="#9DB8DD", penwidth=1.4, fixedsize=true, width="12.2", height="1.3", pos="255,120"];\n'
+b += '  bandB [label="", shape=box, style="rounded,filled", fillcolor="#F4EFFB", color="#C3ABE0", penwidth=1.4, fixedsize=true, width="12.2", height="1.3", pos="255,20"];\n'
+b += f'  ptitleA [shape=plaintext, style="filled", fillcolor="#EFF4FC", fontname="{FONT}", fontcolor="#1d3a66", fontsize="12", label="阶段一　命中断点，回退一步并准备单步", pos="255,148"];\n'
+b += f'  ptitleB [shape=plaintext, style="filled", fillcolor="#F4EFFB", fontname="{FONT}", fontcolor="#48227f", fontsize="12", label="阶段二　单步越过原指令后，恢复断点", pos="255,48"];\n'
 for nid,lab,kind,x,y in cells:
     b += node(nid,lab,kind,pos=f"{x},{y}",width="1.95",height="0.62",fixedsize="true")
+# 设置断点：环外一次性操作（tracer），从上方汇入命中 #BP
+b += node("setup","设置断点（一次性）\\n定位代码、写 int3","user",pos="0,200",width="2.05",height="0.62",fixedsize="true")
 # 图例
-b += node("leg_t","tracee（被调试程序）","core",pos="230,205",width="2.4",height="0.42",fixedsize="true",fontsize="11")
-b += node("leg_r","tracer（调试器）","user",pos="510,205",width="2.4",height="0.42",fixedsize="true",fontsize="11")
+b += node("leg_t","tracee（被调试程序）","core",pos="300,200",width="2.3",height="0.42",fixedsize="true",fontsize="11")
+b += node("leg_r","tracer（调试器）","user",pos="555,200",width="2.3",height="0.42",fixedsize="true",fontsize="11")
 # 顺序流（灰，蛇形）
 seq_edges = [
   ("b1:e","b2:w"),("b2:e","b3:w"),("b3:e","b4:w"),
@@ -376,13 +384,15 @@ seq_edges = [
 ]
 for a,c in seq_edges:
     b += f'  {a} -> {c} [color="#5b6b7d"];\n'
+# 设置断点 -> 进入循环
+b += '  setup:s -> b1:n [color="#5b6b7d"];\n'
 # 回到开头（红实线，走最左侧竖线）
-b += '  lb1 [shape=point, width=0.01, style=invis, pos="-135,0"];\n'
-b += '  lb2 [shape=point, width=0.01, style=invis, pos="-135,120"];\n'
+b += '  lb1 [shape=point, width=0.01, style=invis, pos="-140,10"];\n'
+b += '  lb2 [shape=point, width=0.01, style=invis, pos="-140,110"];\n'
 b += '  b8:w -> lb1 [arrowhead=none, color="#C0463F"];\n'
 b += '  lb1 -> lb2 [arrowhead=none, color="#C0463F"];\n'
 b += '  lb2 -> b1:w [color="#C0463F"];\n'
-b += tlabel("fb","再次命中","-135,60",color="#C0463F")
+b += tlabel("fb","再次命中","-140,70",color="#C0463F")
 
 dot9 = ('digraph G {\n'
   f'  graph [fontname="{FONT}", bgcolor="white", pad="0.3", splines=true];\n'
