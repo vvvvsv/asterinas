@@ -1,40 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Build the defense .pptx from 答辩稿-20页.md, reusing PPT.pptx's template look
-(per-slide background images + red title styling)."""
-import os, re, zipfile
+"""Build the defense .pptx from 答辩稿-20页.md as a clean, self-contained deck
+(no external template, no background images — white slides, red accent titles)."""
+import os, re
 from pptx import Presentation
-from pptx.util import Inches, Pt
+from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.oxml.ns import qn
-from pptx.oxml import parse_xml
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MD   = os.path.join(HERE, "答辩稿-20页.md")
-TPL  = os.path.join(HERE, "..", "PPT.pptx")
 OUT  = os.path.join(HERE, "答辩-科研实践.pptx")
-MEDIA_DIR = os.path.join(HERE, "assets", "_tpl")   # extracted template backgrounds
 
 MONO  = "Menlo"
-RED   = RGBColor(0xA0, 0x00, 0x16)   # title / accent (template)
+RED   = RGBColor(0xA0, 0x00, 0x16)   # title / accent
 DARK  = RGBColor(0x20, 0x20, 0x20)   # body
 SUB   = RGBColor(0x60, 0x60, 0x60)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-LIGHT = RGBColor(0xE8, 0xDD, 0xDF)   # subtitle on dark cover
-L_BLANK = 6                          # 空白 layout
-
-# ---------------- extract template backgrounds ----------------
-def extract_bg():
-    os.makedirs(MEDIA_DIR, exist_ok=True)
-    z = zipfile.ZipFile(TPL)
-    for n in ("image1.png", "image5.png"):
-        p = os.path.join(MEDIA_DIR, n)
-        if not os.path.exists(p):
-            open(p, "wb").write(z.read("ppt/media/" + n))
-    return {"dark": os.path.join(MEDIA_DIR, "image1.png"),
-            "content": os.path.join(MEDIA_DIR, "image5.png")}
+L_BLANK = 6                          # 空白 layout (default template index)
 
 # ---------------- markdown parsing ----------------
 def parse(md):
@@ -52,7 +37,7 @@ def parse(md):
         if not started:
             i += 1; continue
         s = ln.strip()
-        if not s or s == "---" or s.startswith("<div") or s.startswith("</div") or s.startswith("<!--"):
+        if not s or s == "---" or s == ">" or s.startswith("<div") or s.startswith("</div") or s.startswith("<!--"):
             i += 1; continue
         im = re.match(r'^!\[(.*?)\]\((.*?)\)\s*$', s)
         if im:
@@ -111,15 +96,22 @@ def add_runs(p, text, size=None, color=DARK, bold_all=False, code_color=RED):
         else:
             r = p.add_run(); set_font(r, size, bold_all, color); r.text = _clean(part)
 
-def set_bg(slide, img):
-    _, rId = slide.part.get_or_add_image_part(img)
-    bg = parse_xml(
-        '<p:bg xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
-        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
-        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-        '<p:bgPr><a:blipFill dpi="0" rotWithShape="1"><a:blip r:embed="%s"/>'
-        '<a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>' % rId)
-    slide._element.find(qn('p:cSld')).insert(0, bg)
+def white_bg(slide):
+    """Force an explicit white slide background (no template)."""
+    cSld = slide._element.find(qn('p:cSld'))
+    bg = cSld.makeelement(qn('p:bg'), {})
+    bgPr = bg.makeelement(qn('p:bgPr'), {})
+    fill = bgPr.makeelement(qn('a:solidFill'), {})
+    clr = fill.makeelement(qn('a:srgbClr'), {'val': 'FFFFFF'})
+    fill.append(clr); bgPr.append(fill)
+    bgPr.append(bgPr.makeelement(qn('a:effectLst'), {}))
+    bg.append(bgPr); cSld.insert(0, bg)
+
+def accent_bar(slide, l, t, w=2.4, h_pt=3):
+    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(l), Inches(t), Inches(w), Pt(h_pt))
+    bar.fill.solid(); bar.fill.fore_color.rgb = RED
+    bar.line.fill.background(); bar.shadow.inherit = False
+    return bar
 
 def textbox(slide, l, t, w, h, anchor=MSO_ANCHOR.TOP):
     tf = slide.shapes.add_textbox(Inches(l), Inches(t), Inches(w), Inches(h)).text_frame
@@ -130,9 +122,9 @@ def textbox(slide, l, t, w, h, anchor=MSO_ANCHOR.TOP):
 def add_title(slide, text):
     tf = textbox(slide, 1.1, 1.02, 11.2, 0.75, MSO_ANCHOR.MIDDLE)
     add_runs(tf.paragraphs[0], text, 24, RED, bold_all=True)
+    accent_bar(slide, 1.12, 1.74, 0.9, 2.5)
 
-def add_text_block(slide, items, l, t, w, h, dark=True):
-    body = DARK if dark else LIGHT
+def add_text_block(slide, items, l, t, w, h):
     tf = textbox(slide, l, t, w, h); first = True
     for it in items:
         p = tf.paragraphs[0] if first else tf.add_paragraph(); first = False
@@ -141,11 +133,11 @@ def add_text_block(slide, items, l, t, w, h, dark=True):
             lvl, txt = it[1], it[2]; p.level = lvl
             rb = p.add_run(); set_font(rb, 15 if not lvl else 13, False, RED if not lvl else SUB)
             rb.text = "•  " if not lvl else "－ "
-            add_runs(p, txt, 15 if not lvl else 13, body)
+            add_runs(p, txt, 15 if not lvl else 13, DARK)
         elif it[0] == "quote":
             add_runs(p, it[1], 12.5, SUB)
         else:
-            add_runs(p, it[1], 15, body)
+            add_runs(p, it[1], 15, DARK)
     return tf
 
 def img_size(path):
@@ -177,7 +169,7 @@ def md_table(slide, rows, l, t, w, h):
 # ---------------- slide builders ----------------
 CL, CT, CW, CB = 1.1, 1.95, 11.2, 6.85
 
-def build(prs, sl, BG):
+def build(prs, sl):
     title, blocks = sl["title"], sl["blocks"]
     imgs   = [b for b in blocks if b[0] == "img"]
     tables = [b for b in blocks if b[0] == "table"]
@@ -185,6 +177,7 @@ def build(prs, sl, BG):
     h1s = [b[1] for b in blocks if b[0] == "h1"]
     h3s = [b[1] for b in blocks if b[0] == "h3"]
     s = prs.slides.add_slide(prs.slide_layouts[L_BLANK])
+    white_bg(s)
 
     notes = [b[1] for b in blocks if b[0] == "note"]
     if notes:
@@ -194,31 +187,28 @@ def build(prs, sl, BG):
             ntf.add_paragraph().text = n
 
     if "封面" in title:
-        set_bg(s, BG["dark"])
-        tf = textbox(s, 1.2, 1.55, 10.9, 1.3, MSO_ANCHOR.MIDDLE)
-        add_runs(tf.paragraphs[0], h1s[0] if h1s else title, 38, RED, bold_all=True)
-        tf2 = textbox(s, 1.2, 3.1, 10.9, 0.8, MSO_ANCHOR.MIDDLE)
-        if h3s: add_runs(tf2.paragraphs[0], h3s[0], 19, LIGHT, bold_all=True)
+        tf = textbox(s, 1.2, 1.75, 10.9, 1.5, MSO_ANCHOR.MIDDLE)
+        add_runs(tf.paragraphs[0], h1s[0] if h1s else title, 40, RED, bold_all=True)
+        accent_bar(s, 1.24, 3.25, 2.6, 3)
+        tf2 = textbox(s, 1.2, 3.45, 10.9, 0.8, MSO_ANCHOR.MIDDLE)
+        if h3s: add_runs(tf2.paragraphs[0], h3s[0], 19, DARK, bold_all=True)
         if texts:
-            tf3 = textbox(s, 1.2, 4.3, 10.9, 1.8)
+            tf3 = textbox(s, 1.2, 4.6, 10.9, 1.8)
             for k, it in enumerate(texts):
                 p = tf3.paragraphs[0] if k == 0 else tf3.add_paragraph(); p.space_after = Pt(5)
-                add_runs(p, it[-1], 14, LIGHT)
+                add_runs(p, it[-1], 14, SUB)
         return
 
     if "开篇" in title or title.strip().startswith("PART"):
-        # plain white section divider, big red title
         tf = textbox(s, 1.2, 2.6, 10.9, 1.4, MSO_ANCHOR.MIDDLE)
         add_runs(tf.paragraphs[0], h1s[0] if h1s else title, 44, RED, bold_all=True)
+        accent_bar(s, 1.22, 3.95, 2.4, 3)
         if h3s:
             tf2 = textbox(s, 1.2, 4.1, 10.9, 0.7, MSO_ANCHOR.MIDDLE)
             add_runs(tf2.paragraphs[0], h3s[0], 18, SUB)
-        bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1.22), Inches(3.95), Inches(2.4), Pt(3))
-        bar.fill.solid(); bar.fill.fore_color.rgb = RED; bar.line.fill.background(); bar.shadow.inherit = False
         return
 
     if "Q & A" in title or "Q&A" in title:
-        set_bg(s, BG["dark"])
         tf = textbox(s, 1.2, 3.0, 10.9, 1.4, MSO_ANCHOR.MIDDLE)
         p = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
         add_runs(p, "谢谢！　Q & A", 40, RED, bold_all=True)
@@ -227,12 +217,12 @@ def build(prs, sl, BG):
     if "目录" in title:
         tf = textbox(s, 1.2, 0.95, 10.9, 1.0)
         add_runs(tf.paragraphs[0], "目  录", 40, RED, bold_all=True)
+        accent_bar(s, 1.24, 1.85, 1.1, 3)
         if tables:
             md_table(s, tables[0][1], 1.4, 2.4, 10.5, min(4.0, 0.62 * len(tables[0][1]) + 0.5))
         return
 
-    # ---- content (image5 background) ----
-    set_bg(s, BG["content"])
+    # ---- content ----
     add_title(s, title)
     ch = CB - CT
 
@@ -283,15 +273,13 @@ def build(prs, sl, BG):
     flush()
 
 def main():
-    BG = extract_bg()
-    prs = Presentation(TPL)
-    sldIdLst = prs.slides._sldIdLst
-    for sldId in list(sldIdLst):
-        prs.part.drop_rel(sldId.get(qn('r:id'))); sldIdLst.remove(sldId)
+    prs = Presentation()
+    prs.slide_width  = Inches(13.333)
+    prs.slide_height = Inches(7.5)
     for sl in parse(open(MD, encoding="utf-8").read()):
-        build(prs, sl, BG)
+        build(prs, sl)
     prs.save(OUT)
-    print(f"wrote {OUT}  ({len(prs.slides._sldIdLst)} slides; template backgrounds applied)")
+    print(f"wrote {OUT}  ({len(prs.slides._sldIdLst)} slides; no template, clean white deck)")
 
 if __name__ == "__main__":
     main()
