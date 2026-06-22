@@ -52,7 +52,7 @@ def parse(md):
         if not started:
             i += 1; continue
         s = ln.strip()
-        if not s or s == "---" or s.startswith("<div") or s.startswith("</div"):
+        if not s or s == "---" or s.startswith("<div") or s.startswith("</div") or s.startswith("<!--"):
             i += 1; continue
         im = re.match(r'^!\[(.*?)\]\((.*?)\)\s*$', s)
         if im:
